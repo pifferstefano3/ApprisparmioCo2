@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#2e8b57">
+  <title>VERDENT — Il tuo alleato ecologico</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/animations.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+
+  <!-- Sfondo animato -->
+  <div class="animated-bg"></div>
+  <div class="particles-container" id="particles">
+    <!-- Foglie -->
+    <div class="leaf"></div>
+    <div class="leaf"></div>
+    <div class="leaf"></div>
+    <div class="leaf"></div>
+    <div class="leaf"></div>
+    <div class="leaf"></div>
+    <div class="leaf"></div>
+    <div class="leaf"></div>
+    <div class="leaf"></div>
+    <div class="leaf"></div>
+    <!-- Particelle CO2 -->
+    <div class="co2-particle"></div>
+    <div class="co2-particle"></div>
+    <div class="co2-particle"></div>
+    <div class="co2-particle"></div>
+    <div class="co2-particle"></div>
+    <div class="co2-particle"></div>
+    <div class="co2-particle"></div>
+    <div class="co2-particle"></div>
+  </div>
+
+  <!-- Pagina principale -->
+  <main class="page" style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100dvh; padding:24px 16px;">
+
+    <!-- Logo & Brand -->
+    <div class="text-center animate-fade-in-up" style="margin-bottom: 32px;">
+      <div style="font-size: 3.5rem; margin-bottom: 8px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2));">🌿</div>
+      <h1 style="color: white; text-shadow: 0 2px 12px rgba(0,0,0,0.2); letter-spacing:-0.02em;">VERDENT</h1>
+      <p style="color: rgba(255,255,255,0.75); margin-top: 6px; font-size: 1rem;">Traccia. Risparmia. Guadagna. Salva il Pianeta.</p>
+    </div>
+
+    <!-- Auth Card -->
+    <div class="glass-card animate-fade-in-up w-full" style="max-width: 400px; animation-delay: 0.1s;">
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="login">Accedi</button>
+        <button class="tab-btn" data-tab="register">Registrati</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm" data-panel="login">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-input" id="loginEmail" placeholder="la-tua@email.com" autocomplete="email" required>
+          <span class="form-error" id="loginEmailErr"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-input" id="loginPassword" placeholder="••••••••" autocomplete="current-password" required>
+          <span class="form-error" id="loginPasswordErr"></span>
+        </div>
+        <div class="form-error" id="loginError" style="margin-bottom:12px; text-align:center; font-size:0.85rem;"></div>
+        <button type="submit" class="btn btn-primary" id="loginBtn">
+          <span id="loginBtnText">Accedi a VERDENT 🌿</span>
+        </button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" data-panel="register" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input type="text" class="form-input" id="regUsername" placeholder="eco_ninja_42" autocomplete="username" required>
+          <span class="form-error" id="regUsernameErr"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-input" id="regEmail" placeholder="la-tua@email.com" autocomplete="email" required>
+          <span class="form-error" id="regEmailErr"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-input" id="regPassword" placeholder="Minimo 6 caratteri" autocomplete="new-password" required>
+          <span class="form-error" id="regPasswordErr"></span>
+        </div>
+        <div class="form-error" id="registerError" style="margin-bottom:12px; text-align:center; font-size:0.85rem;"></div>
+        <button type="submit" class="btn btn-primary" id="registerBtn">
+          <span id="registerBtnText">Crea il tuo account 🌱</span>
+        </button>
+      </form>
+
+    </div>
+
+    <!-- Footer disclaimer -->
+    <p class="text-center animate-fade-in" style="margin-top:20px; font-size:0.72rem; color:rgba(255,255,255,0.5); animation-delay:0.3s;">
+      Ogni spostamento ecologico conta. Inizia oggi.
+    </p>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+</body>
+</html>

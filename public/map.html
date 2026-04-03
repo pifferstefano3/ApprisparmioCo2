@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#2e8b57">
+  <title>VERDENT — Traccia il percorso</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/animations.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+</head>
+<body style="overflow: hidden;">
+
+  <!-- Mappa Leaflet (full-screen) -->
+  <div id="map"></div>
+
+  <!-- Top Bar -->
+  <div class="map-top-bar">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a href="/dashboard.html" class="btn btn-ghost btn-sm" style="width:auto; background:rgba(0,0,0,0.5); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.2); color:white; padding:8px 14px; border-radius:999px;">
+        ← Dashboard
+      </a>
+      <div class="map-status-pill" id="statusPill">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Pronto al tracciamento</span>
+      </div>
+    </div>
+    <!-- Stats in tempo reale -->
+    <div style="display:flex; gap:8px; margin-top:10px;" id="liveStats">
+      <div class="map-status-pill" id="liveDistance" style="display:none;">
+        📍 <span id="distanceVal">0.00</span> km
+      </div>
+      <div class="map-status-pill" id="liveDuration" style="display:none;">
+        ⏱ <span id="durationVal">0:00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- UI Bottom Panel -->
+  <div class="map-ui-overlay">
+    <div class="glass-card--dark glass-card" style="max-width:480px; margin:0 auto;">
+
+      <!-- Selettore Mezzo -->
+      <div id="transportPanel">
+        <h3 style="color:white; font-size:0.88rem; margin-bottom:12px; text-align:center;">Come ti stai spostando?</h3>
+        <div class="transport-grid" id="transportGrid">
+          <button class="transport-btn" data-transport="walk">
+            <span class="t-icon">🚶</span>
+            <span>A Piedi</span>
+          </button>
+          <button class="transport-btn" data-transport="bike">
+            <span class="t-icon">🚴</span>
+            <span>Bici</span>
+          </button>
+          <button class="transport-btn" data-transport="bus">
+            <span class="t-icon">🚌</span>
+            <span>Autobus</span>
+          </button>
+          <button class="transport-btn" data-transport="tram">
+            <span class="t-icon">🚃</span>
+            <span>Tram</span>
+          </button>
+          <button class="transport-btn" data-transport="carpool">
+            <span class="t-icon">🚗</span>
+            <span>Carpool</span>
+          </button>
+          <button class="transport-btn" data-transport="car">
+            <span class="t-icon">🚙</span>
+            <span>Auto</span>
+          </button>
+        </div>
+
+        <!-- Meteo Opzionale -->
+        <div style="margin-top:14px;">
+          <label style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600;">
+            Condizioni meteo (opzionale)
+          </label>
+          <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+            <button class="weather-btn" data-weather="sunny" style="flex:1; padding:8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:10px; color:white; font-size:0.8rem; cursor:pointer; transition:all 0.2s;">☀️ Sole</button>
+            <button class="weather-btn" data-weather="cloudy" style="flex:1; padding:8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:10px; color:white; font-size:0.8rem; cursor:pointer; transition:all 0.2s;">⛅ Nuvoloso</button>
+            <button class="weather-btn" data-weather="rainy" style="flex:1; padding:8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:10px; color:white; font-size:0.8rem; cursor:pointer; transition:all 0.2s;">🌧️ Pioggia</button>
+            <button class="weather-btn" data-weather="snowy" style="flex:1; padding:8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:10px; color:white; font-size:0.8rem; cursor:pointer; transition:all 0.2s;">❄️ Neve</button>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="startBtn" style="margin-top:16px;" disabled>
+          🎯 Inizia Tracciamento
+        </button>
+      </div>
+
+      <!-- Pannello tracciamento attivo -->
+      <div id="trackingPanel" style="display:none; text-align:center;">
+        <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.1em; color:#4ade80; font-weight:700; margin-bottom:6px;">IN TRACCIAMENTO</div>
+        <div style="font-size:2rem; font-weight:800; color:white;" id="trackingTransportLabel">🚶 A Piedi</div>
+        <div style="margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:12px;">
+            <div style="font-size:1.3rem; font-weight:800; color:white;" id="trackDist">0.00</div>
+            <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">km</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:12px;">
+            <div style="font-size:1.3rem; font-weight:800; color:white;" id="trackTime">0:00</div>
+            <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">durata</div>
+          </div>
+        </div>
+        <button class="btn btn-danger" id="stopBtn" style="margin-top:14px;">
+          ⏹ Ferma e Salva
+        </button>
+        <button class="btn btn-ghost" id="cancelBtn" style="margin-top:6px; font-size:0.8rem; color:var(--text-muted);">
+          Annulla percorso
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Overlay Punti Guadagnati -->
+  <div class="points-overlay" id="pointsOverlay" style="display:none;">
+    <div style="font-size:2rem; margin-bottom:8px;" id="overlayEmoji">🎉</div>
+    <h2 id="overlayPoints">+0</h2>
+    <p>punti guadagnati!</p>
+    <div class="bonus-text" id="overlayBonus" style="display:none;"></div>
+    <div style="margin-top:6px; font-size:0.82rem; color:rgba(255,255,255,0.5);" id="overlayCO2"></div>
+    <button class="btn btn-primary" style="margin-top:20px;" onclick="closeOverlay()">Ottimo! 🌿</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/map.js"></script>
+</body>
+</html>

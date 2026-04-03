@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#2e8b57">
+  <title>VERDENT — Dashboard</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/animations.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+
+  <div class="animated-bg"></div>
+  <div class="particles-container">
+    <div class="leaf"></div><div class="leaf"></div><div class="leaf"></div>
+    <div class="leaf"></div><div class="leaf"></div><div class="leaf"></div>
+    <div class="co2-particle"></div><div class="co2-particle"></div>
+    <div class="co2-particle"></div><div class="co2-particle"></div>
+    <div class="co2-particle"></div>
+  </div>
+
+  <div class="page pb-nav">
+
+    <!-- Header -->
+    <div class="page-header">
+      <div class="header-avatar" id="headerAvatar">🌿</div>
+      <div class="header-user">
+        <div class="header-greeting">Bentornato,</div>
+        <div class="header-username" id="headerUsername">...</div>
+      </div>
+      <div class="header-points">
+        <span>⭐</span>
+        <span id="headerPoints">0</span>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="container" style="padding-top: 20px;">
+
+      <!-- Streak Banner -->
+      <div class="glass-card animate-fade-in-up" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; animation-delay:0.05s;">
+        <div>
+          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); font-weight:600;">Streak Attuale</div>
+          <div style="font-size:1.4rem; font-weight:800; color:white; margin-top:2px;" id="streakDays">0 giorni</div>
+          <div style="font-size:0.72rem; color:var(--text-muted);">Massimo: <span id="streakMax">0</span> giorni</div>
+        </div>
+        <div class="streak-badge">
+          <span class="streak-flame">🔥</span>
+          <span id="streakValue">0</span>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px;">
+        <div class="glass-card stat-card animate-fade-in-up" style="animation-delay:0.1s;">
+          <div class="stat-icon">🌍</div>
+          <div class="stat-value" id="statCO2">0.0</div>
+          <div class="stat-label">kg CO2 Risparmiati</div>
+        </div>
+        <div class="glass-card stat-card animate-fade-in-up" style="animation-delay:0.15s;">
+          <div class="stat-icon">🚴</div>
+          <div class="stat-value" id="statKm">0.0</div>
+          <div class="stat-label">km Sostenibili</div>
+        </div>
+        <div class="glass-card stat-card animate-fade-in-up" style="animation-delay:0.2s;">
+          <div class="stat-icon">⭐</div>
+          <div class="stat-value" id="statPoints">0</div>
+          <div class="stat-label">Punti Totali</div>
+        </div>
+      </div>
+
+      <!-- AI Tip -->
+      <div class="glass-card ai-tip-box animate-fade-in-up" style="margin-bottom:16px; animation-delay:0.25s;">
+        <div class="ai-label">
+          <span>🤖</span> AI VERDENT
+        </div>
+        <div class="ai-tip-text" id="aiTipText">
+          <div class="spinner" style="width:20px; height:20px; margin:0;"></div>
+        </div>
+      </div>
+
+      <!-- Trofei -->
+      <div class="glass-card animate-fade-in-up" style="margin-bottom:16px; animation-delay:0.3s;" id="trophySection">
+        <h3 style="color:white; margin-bottom:12px; font-size:0.92rem;">🏆 I Tuoi Trofei</h3>
+        <div class="trophy-grid" id="trophyGrid">
+          <span style="color:var(--text-muted); font-size:0.82rem;">Completa attività per sbloccare trofei!</span>
+        </div>
+      </div>
+
+      <!-- Ultime Attività -->
+      <div class="glass-card animate-fade-in-up" style="margin-bottom:16px; animation-delay:0.35s;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <h3 style="color:white; font-size:0.92rem;">📋 Attività Recenti</h3>
+          <a href="/map.html" style="font-size:0.78rem; color:#4ade80; font-weight:600;">+ Aggiungi</a>
+        </div>
+        <div id="activityList">
+          <div style="text-align:center; padding:20px 0; color:var(--text-muted); font-size:0.85rem;">
+            <div class="spinner" style="margin-bottom:8px;"></div>
+            Caricamento...
+          </div>
+        </div>
+      </div>
+
+      <!-- Logout -->
+      <button class="btn btn-secondary" id="logoutBtn" style="margin-bottom:8px; font-size:0.88rem;">
+        🚪 Esci dall'account
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <a href="/dashboard.html" class="nav-item active">
+      <span class="nav-icon">🏠</span>
+      <span>Home</span>
+    </a>
+    <a href="/map.html" class="nav-item">
+      <span class="nav-icon">🗺️</span>
+      <span>Mappa</span>
+    </a>
+    <a href="/shop.html" class="nav-item">
+      <span class="nav-icon">🛍️</span>
+      <span>EcoShop</span>
+    </a>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>
