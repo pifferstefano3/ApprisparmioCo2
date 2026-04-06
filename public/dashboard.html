@@ -102,6 +102,26 @@
         </div>
       </div>
 
+      <!-- Quick Links -->
+      <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:16px;">
+        <a href="/leaderboard.html" class="glass-card" style="display:flex;align-items:center;gap:10px;padding:14px;text-decoration:none;">
+          <span style="font-size:1.4rem;">🏆</span>
+          <div><div style="color:white;font-weight:600;font-size:0.85rem;">Classifica</div><div style="color:var(--text-muted);font-size:0.7rem;">Top utenti globali</div></div>
+        </a>
+        <a href="/challenges.html" class="glass-card" style="display:flex;align-items:center;gap:10px;padding:14px;text-decoration:none;">
+          <span style="font-size:1.4rem;">🎯</span>
+          <div><div style="color:white;font-weight:600;font-size:0.85rem;">Sfide</div><div style="color:var(--text-muted);font-size:0.7rem;">Obiettivo del mese</div></div>
+        </a>
+        <a href="/profile.html" class="glass-card" style="display:flex;align-items:center;gap:10px;padding:14px;text-decoration:none;">
+          <span style="font-size:1.4rem;">👤</span>
+          <div><div style="color:white;font-weight:600;font-size:0.85rem;">Profilo</div><div style="color:var(--text-muted);font-size:0.7rem;">Modifica avatar</div></div>
+        </a>
+        <a href="/feed.html" class="glass-card" style="display:flex;align-items:center;gap:10px;padding:14px;text-decoration:none;">
+          <span style="font-size:1.4rem;">📸</span>
+          <div><div style="color:white;font-weight:600;font-size:0.85rem;">EcoFeed</div><div style="color:var(--text-muted);font-size:0.7rem;">Community verde</div></div>
+        </a>
+      </div>
+
       <!-- Logout -->
       <button class="btn btn-secondary" id="logoutBtn" style="margin-bottom:8px; font-size:0.88rem;">
         🚪 Esci dall'account
@@ -112,18 +132,11 @@
 
   <!-- Bottom Nav -->
   <nav class="bottom-nav">
-    <a href="/dashboard.html" class="nav-item active">
-      <span class="nav-icon">🏠</span>
-      <span>Home</span>
-    </a>
-    <a href="/map.html" class="nav-item">
-      <span class="nav-icon">🗺️</span>
-      <span>Mappa</span>
-    </a>
-    <a href="/shop.html" class="nav-item">
-      <span class="nav-icon">🛍️</span>
-      <span>EcoShop</span>
-    </a>
+    <a href="/dashboard.html"   class="nav-item active"><span class="nav-icon">🏠</span><span>Home</span></a>
+    <a href="/map.html"         class="nav-item"><span class="nav-icon">🗺️</span><span>Mappa</span></a>
+    <a href="/feed.html"        class="nav-item"><span class="nav-icon">📸</span><span>Feed</span></a>
+    <a href="/chat.html"        class="nav-item"><span class="nav-icon">🤖</span><span>EcoChat</span></a>
+    <a href="/shop.html"        class="nav-item"><span class="nav-icon">🛍️</span><span>Shop</span></a>
   </nav>
 
   <div class="toast" id="toast"></div>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#2e8b57">
+  <title>VERDENT — Sfide del Mese</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/animations.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+  <div class="animated-bg"></div>
+  <div class="particles-container">
+    <div class="leaf"></div><div class="leaf"></div><div class="leaf"></div>
+    <div class="co2-particle"></div><div class="co2-particle"></div>
+  </div>
+
+  <div class="page pb-nav">
+
+    <!-- Header -->
+    <div class="page-header">
+      <div style="font-size:1.5rem;">🎯</div>
+      <div class="header-user"><div class="header-username">Sfide del Mese</div></div>
+      <div class="header-points"><span>⭐</span><span id="sfideStars">0</span></div>
+    </div>
+
+    <div class="container" style="padding-top:16px;">
+
+      <!-- Countdown scadenza -->
+      <div class="glass-card animate-fade-in-up" style="margin-bottom:16px; text-align:center; background:linear-gradient(135deg,rgba(46,139,87,0.3),rgba(74,222,128,0.15));">
+        <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.1em; color:#4ade80; font-weight:700; margin-bottom:6px;">⏰ SCADENZA SFIDA</div>
+        <div style="font-size:1.8rem; font-weight:800; color:white;" id="daysLeft">... giorni</div>
+        <div style="font-size:0.78rem; color:var(--text-muted);" id="deadline">...</div>
+        <div style="margin-top:10px; font-size:0.75rem; color:rgba(255,255,255,0.6);">Generata dall'AI ogni mese · Cambia il 1° del mese</div>
+      </div>
+
+      <!-- Sfida corrente -->
+      <div class="glass-card animate-fade-in-up" style="margin-bottom:16px; animation-delay:0.1s;" id="challengeCard">
+        <div class="spinner" style="margin:30px auto;"></div>
+      </div>
+
+      <!-- Progresso -->
+      <div class="glass-card animate-fade-in-up" style="margin-bottom:16px; animation-delay:0.2s;" id="progressCard" style="display:none;">
+        <h3 style="color:white; font-size:0.9rem; margin-bottom:14px;">📈 Il Tuo Progresso</h3>
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+          <span style="color:rgba(255,255,255,0.8); font-size:0.85rem;" id="progressLabel">0 / 0</span>
+          <span style="color:#4ade80; font-weight:700;" id="progressPct">0%</span>
+        </div>
+        <div style="height:12px; background:rgba(255,255,255,0.1); border-radius:999px; overflow:hidden;">
+          <div id="progressBar" style="height:100%; background:linear-gradient(90deg,#2e8b57,#4ade80); border-radius:999px; transition:width 1s ease; width:0%;"></div>
+        </div>
+        <div id="completedBanner" style="display:none; margin-top:14px; background:rgba(74,222,128,0.2); border:1px solid rgba(74,222,128,0.4); border-radius:12px; padding:12px; text-align:center; color:#4ade80; font-weight:700;">
+          🎉 Sfida completata! Hai guadagnato il tuo premio!
+        </div>
+      </div>
+
+      <!-- Info gamification -->
+      <div class="glass-card animate-fade-in-up" style="animation-delay:0.3s;">
+        <h3 style="color:white; font-size:0.9rem; margin-bottom:12px;">ℹ️ Come funzionano le sfide</h3>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; gap:10px; align-items:flex-start;">
+            <span style="font-size:1.2rem;">🤖</span>
+            <div style="font-size:0.82rem; color:rgba(255,255,255,0.8);">L'AI genera una nuova sfida ogni mese basandosi sulle abitudini globali degli utenti VERDENT.</div>
+          </div>
+          <div style="display:flex; gap:10px; align-items:flex-start;">
+            <span style="font-size:1.2rem;">📊</span>
+            <div style="font-size:0.82rem; color:rgba(255,255,255,0.8);">Il progresso viene tracciato automaticamente dalle tue attività, post e interazioni.</div>
+          </div>
+          <div style="display:flex; gap:10px; align-items:flex-start;">
+            <span style="font-size:1.2rem;">🎁</span>
+            <div style="font-size:0.82rem; color:rgba(255,255,255,0.8);">Completa la sfida entro la scadenza per ricevere il premio in stelle e sbloccare contenuti esclusivi.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <a href="/dashboard.html"   class="nav-item"><span class="nav-icon">🏠</span><span>Home</span></a>
+    <a href="/leaderboard.html" class="nav-item"><span class="nav-icon">🏆</span><span>Classifica</span></a>
+    <a href="/challenges.html"  class="nav-item active"><span class="nav-icon">🎯</span><span>Sfide</span></a>
+    <a href="/chat.html"        class="nav-item"><span class="nav-icon">🤖</span><span>EcoChat</span></a>
+    <a href="/shop.html"        class="nav-item"><span class="nav-icon">🛍️</span><span>Shop</span></a>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+  <script src="/js/api.js"></script>
+  <script src="/js/challenges.js"></script>
+</body>
+</html>

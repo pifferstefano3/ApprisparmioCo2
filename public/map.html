@@ -26,7 +26,6 @@
         <span id="statusText">Pronto al tracciamento</span>
       </div>
     </div>
-    <!-- Stats in tempo reale -->
     <div style="display:flex; gap:8px; margin-top:10px;" id="liveStats">
       <div class="map-status-pill" id="liveDistance" style="display:none;">
         📍 <span id="distanceVal">0.00</span> km
@@ -39,52 +38,77 @@
 
   <!-- UI Bottom Panel -->
   <div class="map-ui-overlay">
-    <div class="glass-card--dark glass-card" style="max-width:480px; margin:0 auto;">
+    <div class="glass-card--dark glass-card" style="max-width:480px; margin:0 auto; max-height:55vh; overflow-y:auto;">
 
       <!-- Selettore Mezzo -->
       <div id="transportPanel">
         <h3 style="color:white; font-size:0.88rem; margin-bottom:12px; text-align:center;">Come ti stai spostando?</h3>
-        <div class="transport-grid" id="transportGrid">
+
+        <!-- Griglia mezzi: 4 colonne -->
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px;" id="transportGrid">
           <button class="transport-btn" data-transport="walk">
-            <span class="t-icon">🚶</span>
-            <span>A Piedi</span>
+            <span class="t-icon">🚶</span><span>Piedi</span>
           </button>
           <button class="transport-btn" data-transport="bike">
-            <span class="t-icon">🚴</span>
-            <span>Bici</span>
+            <span class="t-icon">🚴</span><span>Bici</span>
           </button>
           <button class="transport-btn" data-transport="bus">
-            <span class="t-icon">🚌</span>
-            <span>Autobus</span>
+            <span class="t-icon">🚌</span><span>Bus</span>
           </button>
           <button class="transport-btn" data-transport="tram">
-            <span class="t-icon">🚃</span>
-            <span>Tram</span>
+            <span class="t-icon">🚃</span><span>Tram</span>
           </button>
           <button class="transport-btn" data-transport="carpool">
-            <span class="t-icon">🚗</span>
-            <span>Carpool</span>
+            <span class="t-icon">🚗</span><span>Carpool</span>
+          </button>
+          <button class="transport-btn" data-transport="carpool_ai">
+            <span class="t-icon">🤖</span><span>C.Pool AI</span>
           </button>
           <button class="transport-btn" data-transport="car">
-            <span class="t-icon">🚙</span>
-            <span>Auto</span>
+            <span class="t-icon">🚙</span><span>Auto</span>
+          </button>
+          <button class="transport-btn" data-transport="airplane">
+            <span class="t-icon">✈️</span><span>Aereo</span>
           </button>
         </div>
 
-        <!-- Meteo Opzionale -->
-        <div style="margin-top:14px;">
-          <label style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600;">
-            Condizioni meteo (opzionale)
-          </label>
-          <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
-            <button class="weather-btn" data-weather="sunny" style="flex:1; padding:8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:10px; color:white; font-size:0.8rem; cursor:pointer; transition:all 0.2s;">☀️ Sole</button>
-            <button class="weather-btn" data-weather="cloudy" style="flex:1; padding:8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:10px; color:white; font-size:0.8rem; cursor:pointer; transition:all 0.2s;">⛅ Nuvoloso</button>
-            <button class="weather-btn" data-weather="rainy" style="flex:1; padding:8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:10px; color:white; font-size:0.8rem; cursor:pointer; transition:all 0.2s;">🌧️ Pioggia</button>
-            <button class="weather-btn" data-weather="snowy" style="flex:1; padding:8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:10px; color:white; font-size:0.8rem; cursor:pointer; transition:all 0.2s;">❄️ Neve</button>
+        <!-- Pannello passeggeri carpooling AI -->
+        <div id="passengersPanel" style="display:none; margin-top:12px; background:rgba(46,139,87,0.2); border:1px solid rgba(74,222,128,0.3); border-radius:12px; padding:12px;">
+          <div style="font-size:0.75rem; color:#4ade80; font-weight:600; margin-bottom:8px;">🤖 CARPOOLING AI — Quanti passeggeri?</div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <button onclick="changePax(-1)" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:white;font-size:1.2rem;cursor:pointer;">-</button>
+            <span id="paxValue" style="font-size:1.3rem; font-weight:800; color:white; min-width:32px; text-align:center;">2</span>
+            <button onclick="changePax(1)"  style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:white;font-size:1.2rem;cursor:pointer;">+</button>
+            <div style="flex:1; font-size:0.72rem; color:var(--text-muted);">passeggeri totali (incluso il conducente)</div>
+          </div>
+          <div style="font-size:0.72rem; color:#4ade80; margin-top:6px;" id="paxCO2Hint">Con 2 persone emetti ~85g CO2/km a testa (vs 170g da soli)</div>
+        </div>
+
+        <!-- Avviso aereo -->
+        <div id="airplaneWarning" style="display:none; margin-top:12px; background:rgba(239,68,68,0.15); border:1px solid rgba(248,113,113,0.3); border-radius:12px; padding:10px 12px;">
+          <div style="font-size:0.78rem; color:#fca5a5;">
+            ✈️ <strong>Attenzione:</strong> L'aereo emette ~255g CO2/km per passeggero, più dell'auto. Nessuna stella verrà assegnata. Considera il treno per le prossime tratte!
           </div>
         </div>
 
-        <button class="btn btn-primary" id="startBtn" style="margin-top:16px;" disabled>
+        <!-- Distanza manuale (per aereo e tratte non GPS) -->
+        <div id="manualDistPanel" style="display:none; margin-top:12px;">
+          <label style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; display:block; margin-bottom:6px;">Distanza (km) — inserimento manuale</label>
+          <input type="number" id="manualDistInput" class="form-input" placeholder="es. 500" min="1" step="1" value="">
+        </div>
+
+        <!-- Meteo -->
+        <div style="margin-top:12px;">
+          <label style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600;">Meteo (opzionale)</label>
+          <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
+            <button class="weather-btn" data-weather="sunny"  style="flex:1;min-width:60px;padding:7px 4px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:10px;color:white;font-size:0.75rem;cursor:pointer;transition:all 0.2s;">☀️ Sole</button>
+            <button class="weather-btn" data-weather="cloudy" style="flex:1;min-width:60px;padding:7px 4px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:10px;color:white;font-size:0.75rem;cursor:pointer;transition:all 0.2s;">⛅ Nuvoloso</button>
+            <button class="weather-btn" data-weather="rainy"  style="flex:1;min-width:60px;padding:7px 4px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:10px;color:white;font-size:0.75rem;cursor:pointer;transition:all 0.2s;">🌧️ Pioggia</button>
+            <button class="weather-btn" data-weather="snowy"  style="flex:1;min-width:60px;padding:7px 4px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:10px;color:white;font-size:0.75rem;cursor:pointer;transition:all 0.2s;">❄️ Neve</button>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="startBtn" style="margin-top:14px;" disabled>
           🎯 Inizia Tracciamento
         </button>
       </div>
@@ -115,11 +139,12 @@
   </div>
 
   <!-- Overlay Punti Guadagnati -->
-  <div class="points-overlay" id="pointsOverlay" style="display:none;">
+  <div class="points-overlay" id="pointsOverlay" style="display:none; flex-direction:column;">
     <div style="font-size:2rem; margin-bottom:8px;" id="overlayEmoji">🎉</div>
     <h2 id="overlayPoints">+0</h2>
-    <p>punti guadagnati!</p>
-    <div class="bonus-text" id="overlayBonus" style="display:none;"></div>
+    <p>stelle guadagnate!</p>
+    <div class="bonus-text" id="overlayBonus" style="display:none; margin-top:6px;"></div>
+    <div id="overlayCarpooling" style="display:none; margin-top:6px; font-size:0.78rem; color:#4ade80; background:rgba(74,222,128,0.1); padding:8px 12px; border-radius:10px; border:1px solid rgba(74,222,128,0.2);"></div>
     <div style="margin-top:6px; font-size:0.82rem; color:rgba(255,255,255,0.5);" id="overlayCO2"></div>
     <button class="btn btn-primary" style="margin-top:20px;" onclick="closeOverlay()">Ottimo! 🌿</button>
   </div>

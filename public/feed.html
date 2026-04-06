@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#2e8b57">
+  <title>VERDENT — EcoFeed</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/animations.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+  <div class="animated-bg"></div>
+  <div class="particles-container">
+    <div class="leaf"></div><div class="leaf"></div><div class="leaf"></div>
+    <div class="co2-particle"></div><div class="co2-particle"></div><div class="co2-particle"></div>
+  </div>
+
+  <div class="page pb-nav">
+
+    <!-- Header -->
+    <div class="page-header">
+      <div style="font-size:1.5rem;">📸</div>
+      <div class="header-user"><div class="header-username">EcoFeed</div></div>
+      <button onclick="openPostModal()" class="btn btn-primary btn-sm" style="width:auto; padding:8px 16px;">+ Post</button>
+    </div>
+
+    <div class="container container--wide" style="padding-top:16px;">
+
+      <!-- Feed Verticale -->
+      <div id="feedContainer" style="display:flex; flex-direction:column; gap:16px;">
+        <div style="text-align:center; padding:40px 0; color:var(--text-muted);">
+          <div class="spinner" style="margin:0 auto 12px;"></div>
+          Caricamento feed...
+        </div>
+      </div>
+
+      <!-- Load more -->
+      <div style="text-align:center; padding:20px 0;" id="loadMoreWrapper" style="display:none;">
+        <button class="btn btn-secondary" id="loadMoreBtn" onclick="loadMore()" style="width:auto; padding:10px 24px;">
+          Carica altri post
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <a href="/dashboard.html" class="nav-item"><span class="nav-icon">🏠</span><span>Home</span></a>
+    <a href="/map.html"       class="nav-item"><span class="nav-icon">🗺️</span><span>Mappa</span></a>
+    <a href="/feed.html"      class="nav-item active"><span class="nav-icon">📸</span><span>Feed</span></a>
+    <a href="/chat.html"      class="nav-item"><span class="nav-icon">🤖</span><span>EcoChat</span></a>
+    <a href="/shop.html"      class="nav-item"><span class="nav-icon">🛍️</span><span>Shop</span></a>
+  </nav>
+
+  <!-- Modal Nuovo Post -->
+  <div id="postModal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.6); backdrop-filter:blur(8px); align-items:flex-end; justify-content:center;">
+    <div class="glass-card" style="width:100%; max-width:480px; border-radius:24px 24px 0 0; padding:24px; animation:slideInDown 0.3s ease both; max-height:90vh; overflow-y:auto;">
+      <h3 style="color:white; margin-bottom:16px;">✨ Nuovo Post Ecologico</h3>
+      <div class="form-group">
+        <label class="form-label">Titolo *</label>
+        <input type="text" class="form-input" id="postTitle" placeholder="Racconta il tuo momento green..." maxlength="120">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrizione</label>
+        <textarea class="form-input" id="postDesc" rows="3" placeholder="Dettagli, consigli, emozioni..." maxlength="600" style="resize:vertical;"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Foto o Video (opzionale, max 20MB)</label>
+        <input type="file" id="postMedia" accept="image/*,video/mp4,video/webm" class="form-input" style="padding:10px;">
+        <div id="mediaPreview" style="margin-top:8px;"></div>
+      </div>
+      <div style="background:rgba(74,222,128,0.1); border:1px solid rgba(74,222,128,0.3); border-radius:10px; padding:10px 12px; font-size:0.78rem; color:#4ade80; margin-bottom:16px;">
+        🌟 Ogni post pubblicato ti assegna <strong>+10 stelle</strong> bonus!
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-secondary" onclick="closePostModal()">Annulla</button>
+        <button class="btn btn-primary" id="submitPostBtn" onclick="submitPost()">Pubblica 🌿</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Commenti -->
+  <div id="commentsModal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); align-items:flex-end;">
+    <div class="glass-card" style="width:100%; border-radius:24px 24px 0 0; padding:20px; max-height:70vh; display:flex; flex-direction:column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 style="color:white; font-size:0.95rem;">💬 Commenti</h3>
+        <button onclick="closeCommentsModal()" class="btn btn-ghost btn-sm" style="width:auto;">✕</button>
+      </div>
+      <div id="commentsList" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; margin-bottom:14px;"></div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" class="form-input" id="commentInput" placeholder="Aggiungi un commento..." maxlength="500" style="flex:1;" onkeydown="if(event.key==='Enter')addComment()">
+        <button class="btn btn-primary btn-sm" style="width:auto;" onclick="addComment()">Invia</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <style>
+    .feed-card { margin-bottom:4px; }
+    .feed-header { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+    .feed-avatar { width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,#2e8b57,#4ade80); display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; overflow:hidden; }
+    .feed-avatar img { width:100%; height:100%; object-fit:cover; }
+    .feed-username { font-weight:700; color:white; font-size:0.9rem; }
+    .feed-date { font-size:0.7rem; color:var(--text-muted); }
+    .feed-media { width:100%; border-radius:12px; max-height:400px; object-fit:cover; margin:10px 0; }
+    .feed-title { font-weight:700; color:white; font-size:0.95rem; margin-bottom:4px; }
+    .feed-desc { color:rgba(255,255,255,0.8); font-size:0.85rem; line-height:1.5; }
+    .feed-actions { display:flex; gap:16px; align-items:center; margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1); }
+    .action-btn { display:flex; align-items:center; gap:5px; background:none; border:none; color:rgba(255,255,255,0.7); font-size:0.82rem; cursor:pointer; padding:4px 8px; border-radius:8px; transition:all 0.2s; }
+    .action-btn:hover { color:white; background:rgba(255,255,255,0.1); }
+    .action-btn.liked { color:#f87171; }
+    .comment-item { display:flex; gap:8px; }
+    .comment-avatar { width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,#2e8b57,#4ade80); display:flex; align-items:center; justify-content:center; font-size:0.9rem; flex-shrink:0; }
+    .comment-body { flex:1; background:rgba(255,255,255,0.08); border-radius:10px; padding:8px 12px; }
+    .comment-user { font-weight:600; color:white; font-size:0.78rem; }
+    .comment-text { color:rgba(255,255,255,0.85); font-size:0.82rem; margin-top:2px; }
+  </style>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/feed.js"></script>
+</body>
+</html>

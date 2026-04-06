@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#2e8b57">
+  <title>VERDENT — Il mio Profilo</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/animations.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+  <div class="animated-bg"></div>
+  <div class="particles-container">
+    <div class="leaf"></div><div class="leaf"></div><div class="leaf"></div>
+    <div class="leaf"></div><div class="leaf"></div>
+    <div class="co2-particle"></div><div class="co2-particle"></div><div class="co2-particle"></div>
+  </div>
+
+  <div class="page pb-nav">
+    <!-- Header -->
+    <div class="page-header">
+      <a href="/dashboard.html" class="btn btn-ghost btn-sm" style="width:auto; padding:8px 14px; color:white;">← Home</a>
+      <div class="header-user" style="text-align:center;"><div class="header-username">Il mio Profilo</div></div>
+      <div class="header-points"><span>⭐</span><span id="hPoints">0</span></div>
+    </div>
+
+    <div class="container" style="padding-top:20px;">
+
+      <!-- Avatar + Cornice -->
+      <div class="glass-card animate-fade-in-up" style="text-align:center; margin-bottom:16px;">
+        <div style="position:relative; display:inline-block; margin-bottom:16px;">
+          <!-- Cornice -->
+          <div id="frameRing" style="position:absolute;inset:-6px;border-radius:50%;pointer-events:none;"></div>
+          <!-- Foto profilo -->
+          <div id="profilePicWrapper" style="width:100px;height:100px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2e8b57,#4ade80);display:flex;align-items:center;justify-content:center;font-size:2.8rem;border:3px solid rgba(255,255,255,0.4);cursor:pointer;" onclick="document.getElementById('avatarInput').click()">
+            <span id="profileEmoji">🌿</span>
+            <img id="profileImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;">
+          </div>
+          <div style="position:absolute;bottom:0;right:0;width:28px;height:28px;background:#2e8b57;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid white;font-size:0.8rem;" onclick="document.getElementById('avatarInput').click()">✏️</div>
+        </div>
+        <input type="file" id="avatarInput" accept="image/*" style="display:none">
+
+        <h2 style="color:white;" id="profileUsername">...</h2>
+        <div id="profileHonorTitle" style="font-size:0.8rem; color:#4ade80; margin-top:4px;"></div>
+        <div id="profileBio" style="color:var(--text-muted); font-size:0.85rem; margin-top:6px;"></div>
+        <div id="emailVerifyBadge" style="display:none; margin-top:8px; font-size:0.75rem; color:#fbbf24;">
+          ⚠️ Email non verificata — <button onclick="resendVerification()" style="background:none;border:none;color:#4ade80;cursor:pointer;font-size:0.75rem;font-weight:600;">Reinvia verifica</button>
+        </div>
+
+        <!-- Edit bio -->
+        <div style="margin-top:14px; display:flex; gap:8px; flex-direction:column;">
+          <input type="text" id="bioInput" class="form-input" placeholder="La tua bio ecologica (max 200 caratteri)..." maxlength="200">
+          <button class="btn btn-primary btn-sm" onclick="saveBio()">💾 Salva bio</button>
+        </div>
+      </div>
+
+      <!-- Statistiche -->
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px;">
+        <div class="glass-card stat-card animate-fade-in-up" style="animation-delay:0.05s;">
+          <div class="stat-icon">⭐</div>
+          <div class="stat-value" id="pStars">0</div>
+          <div class="stat-label">Stelle</div>
+        </div>
+        <div class="glass-card stat-card animate-fade-in-up" style="animation-delay:0.1s;">
+          <div class="stat-icon">🌍</div>
+          <div class="stat-value" id="pCO2">0</div>
+          <div class="stat-label">kg CO2</div>
+        </div>
+        <div class="glass-card stat-card animate-fade-in-up" style="animation-delay:0.15s;">
+          <div class="stat-icon">📸</div>
+          <div class="stat-value" id="pPosts">0</div>
+          <div class="stat-label">Post Feed</div>
+        </div>
+      </div>
+
+      <!-- Badge / Cornice attiva -->
+      <div class="glass-card animate-fade-in-up" style="margin-bottom:16px; animation-delay:0.2s;">
+        <h3 style="color:white; font-size:0.9rem; margin-bottom:12px;">🖼️ Cornice Attiva</h3>
+        <div id="activeFrameDisplay" style="display:flex; align-items:center; gap:12px;">
+          <div style="font-size:2rem;" id="activeFrameEmoji">❌</div>
+          <div>
+            <div style="color:white; font-weight:600;" id="activeFrameName">Nessuna cornice</div>
+            <div style="color:var(--text-muted); font-size:0.78rem;">Acquista una cornice nell'EcoShop per 500+ stelle</div>
+          </div>
+          <a href="/shop.html" class="btn btn-primary btn-sm" style="width:auto; margin-left:auto;">Shop 🛍️</a>
+        </div>
+      </div>
+
+      <!-- Equipaggia titolo -->
+      <div class="glass-card animate-fade-in-up" style="margin-bottom:16px; animation-delay:0.25s;" id="titleSection">
+        <h3 style="color:white; font-size:0.9rem; margin-bottom:10px;">🏷️ Titolo Onorifico</h3>
+        <div id="titlePicker" style="display:flex; flex-wrap:wrap; gap:8px;">
+          <span style="color:var(--text-muted); font-size:0.82rem;">Sblocca titoli nell'EcoShop!</span>
+        </div>
+      </div>
+
+      <!-- Ultime attività -->
+      <div class="glass-card animate-fade-in-up" style="margin-bottom:16px; animation-delay:0.3s;">
+        <h3 style="color:white; font-size:0.9rem; margin-bottom:8px;">📋 Ultime Attività</h3>
+        <div id="profileActivities">
+          <div class="spinner" style="margin:12px auto;"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <a href="/dashboard.html" class="nav-item"><span class="nav-icon">🏠</span><span>Home</span></a>
+    <a href="/map.html"       class="nav-item"><span class="nav-icon">🗺️</span><span>Mappa</span></a>
+    <a href="/feed.html"      class="nav-item"><span class="nav-icon">📸</span><span>Feed</span></a>
+    <a href="/chat.html"      class="nav-item"><span class="nav-icon">🤖</span><span>EcoChat</span></a>
+    <a href="/shop.html"      class="nav-item"><span class="nav-icon">🛍️</span><span>Shop</span></a>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+  <script src="/js/api.js"></script>
+  <script src="/js/profile.js"></script>
+</body>
+</html>
