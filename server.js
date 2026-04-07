@@ -83,19 +83,6 @@ app.get('*', (req, res) => {
 });
 
 // ─── MongoDB Atlas Optimized Connection ──────────────────────────────────────
-const MONGO_OPTIONS = {
-  serverSelectionTimeoutMS: 10000,
-  socketTimeoutMS: 45000,
-  connectTimeoutMS: 15000,
-  maxPoolSize: 15,
-  minPoolSize: 3,
-  heartbeatFrequencyMS: 10000,
-  retryWrites: true,
-  retryReads: true,
-  w: 'majority',
-  readPreference: 'primaryPreferred'
-};
-
 let isConnected = false;
 
 async function connectDB() {
@@ -103,7 +90,7 @@ async function connectDB() {
   try {
     const uri = process.env.MONGO_URI ||
       "mongodb+srv://StefanoPiffer:Rango_mitico0progetto@cluster0.cij3u0z.mongodb.net/verdent?retryWrites=true&w=majority";
-    await mongoose.connect(uri, MONGO_OPTIONS);
+    await mongoose.connect(uri);
   } catch (err) {
     console.error('[MongoDB] Connessione fallita:', err.message);
     setTimeout(connectDB, 5000);
