@@ -21,7 +21,7 @@
     <div class="page-header">
       <a href="/dashboard.html" class="btn btn-ghost btn-sm" style="width:auto; padding:8px 14px; color:white;">Home</a>
       <div class="header-user"><div class="header-username">Team</div></div>
-      <button onclick="openCreateTeamModal()" class="btn btn-primary btn-sm" style="width:auto; padding:8px 16px;">+ Crea Team</button>
+      <button id="createTeamBtn" class="btn btn-primary btn-sm" style="width:auto; padding:8px 16px;">+ Crea Team</button>
     </div>
 
     <div class="container" style="padding-top:20px;">
@@ -41,7 +41,7 @@
         <h3 style="color:white; font-size:0.9rem; margin-bottom:12px;">Unisciti a un Team</h3>
         <div style="display:flex; gap:8px;">
           <input type="text" id="joinCode" class="form-input" placeholder="Inserisci codice team..." maxlength="8" style="flex:1;">
-          <button onclick="joinTeam()" class="btn btn-primary">Unisciti</button>
+          <button id="joinTeamBtn" class="btn btn-primary">Unisciti</button>
         </div>
       </div>
 
@@ -55,32 +55,37 @@
   <!-- Create Team Modal -->
   <div id="createTeamModal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.6); backdrop-filter:blur(8px); align-items:center; justify-content:center;">
     <div class="glass-card" style="width:90%; max-width:500px; border-radius:16px; padding:24px;">
-      <h3 style="color:white; margin-bottom:16px;">Crea Nuovo Team</h3>
-      
-      <div class="form-group">
-        <label class="form-label">Nome Team *</label>
-        <input type="text" id="teamName" class="form-input" placeholder="Nome del team..." maxlength="50">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="color:white; margin:0;">Crea Nuovo Team</h3>
+        <button id="closeModalBtn" class="btn btn-ghost btn-sm" style="width:auto; padding:6px 12px;">×</button>
       </div>
       
-      <div class="form-group">
-        <label class="form-label">Descrizione</label>
-        <textarea id="teamDescription" class="form-input" rows="3" placeholder="Descrizione del team..." maxlength="200"></textarea>
-      </div>
-      
-      <div class="form-group">
-        <label class="form-label">Numero Massimo Membri</label>
-        <select id="teamMaxMembers" class="form-input">
-          <option value="10">10 membri</option>
-          <option value="20" selected>20 membri</option>
-          <option value="30">30 membri</option>
-          <option value="50">50 membri</option>
-        </select>
-      </div>
-      
-      <div style="display:flex; gap:10px;">
-        <button type="button" class="btn btn-secondary" onclick="closeCreateTeamModal()">Annulla</button>
-        <button type="button" class="btn btn-primary" onclick="createTeam()">Crea Team</button>
-      </div>
+      <form id="createTeamForm">
+        <div class="form-group">
+          <label class="form-label">Nome Team *</label>
+          <input type="text" id="teamName" class="form-input" placeholder="Nome del team..." maxlength="50" required>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Descrizione</label>
+          <textarea id="teamDescription" class="form-input" rows="3" placeholder="Descrizione del team..." maxlength="200"></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Numero Massimo Membri</label>
+          <select id="teamMaxMembers" class="form-input">
+            <option value="10">10 membri</option>
+            <option value="20" selected>20 membri</option>
+            <option value="30">30 membri</option>
+            <option value="50">50 membri</option>
+          </select>
+        </div>
+        
+        <div style="display:flex; gap:10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeCreateTeamModal()">Annulla</button>
+          <button type="submit" class="btn btn-primary">Crea Team</button>
+        </div>
+      </form>
     </div>
   </div>
 

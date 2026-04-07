@@ -1,106 +1,93 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const User = require('../models/User');
 const Activity = require('../models/Activity');
 const authMiddleware = require('../middleware/auth');
+const { uploadSingle } = require('../middleware/upload');
 
 router.use(authMiddleware);
 
-// ─── Multer Config ────────────────────────────────────────────────────────────
-const UPLOAD_DIR = path.join(__dirname, '..', 'public', 'uploads');
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    cb(null, `avatar_${req.userId}_${Date.now()}${ext}`);
-  },
-});
-
-const fileFilter = (req, file, cb) => {
-  const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-  if (allowed.includes(file.mimetype)) cb(null, true);
-  else cb(new Error('Solo immagini JPG, PNG, GIF o WEBP'));
-};
-
-const upload = multer({ storage, fileFilter, limits: { fileSize: 3 * 1024 * 1024 } }); // 3MB
-
-// GET /api/profile — profilo utente
-router.get('/', async (req, res) => {
+// Profile update route with image upload
+router.post('/update', uploadSingle('avatar', 'profile'), async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('-passwordHash -emailToken -emailTokenExpires -__v').lean();
-    if (!user) return res.status(404).json({ error: 'Utente non trovato' });
-
-    // Ultime 5 attività
-    const recentActivities = await Activity.find({ userId: req.userId })
-      .sort({ createdAt: -1 }).limit(5).lean();
-
-    // Totale post
-    const Post = require('../models/Post');
-    const postCount = await Post.countDocuments({ userId: req.userId });
-
-    res.json({ user, recentActivities, postCount });
-  } catch (err) {
-    console.error('[Profile/GET]', err);
-    res.status(500).json({ error: 'Errore nel recupero profilo' });
+    const { name, bio, trophies } = req.body;
+    const userId = req.userId;
+    
+    // Find user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Utente non trovato' });
+    }
+    
+    // Update user data
+    if (name && name.trim()) {
+      user.name = name.trim();
+    }
+    
+    if (bio !== undefined) {
+      user.bio = bio.trim();
+    }
+    
+    if (trophies !== undefined) {
+      user.trophies = parseInt(trophies) || 0;
+    }
+    
+    // Update avatar if file was uploaded
+    if (req.file) {
+      user.avatar = `/uploads/avatars/${req.file.filename}`;
+    }
+    
+    await user.save();
+    
+    // Return updated user data
+    res.json({
+      message: 'Profilo aggiornato con successo',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        bio: user.bio,
+        avatar: user.avatar,
+        trophies: user.trophies,
+        level: user.level,
+        points: user.points
+      }
+    });
+    
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ 
+      error: error.message || 'Errore nell\'aggiornamento del profilo' 
+    });
   }
 });
 
-// PUT /api/profile — aggiorna bio e/o honorTitle
-router.put('/', async (req, res) => {
+// Get current user profile
+router.get('/me', async (req, res) => {
   try {
-    const { bio, honorTitle, honorFrame, avatarSkin } = req.body;
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ error: 'Utente non trovato' });
-
-    if (bio !== undefined) user.bio = bio.slice(0, 200);
-
-    // HonorTitle e HonorFrame sono sbloccabili solo se presenti nell'inventario
-    if (honorTitle !== undefined) {
-      const owned = user.inventory.some(i => i.itemId === honorTitle);
-      if (owned || honorTitle === '') user.honorTitle = honorTitle;
+    const user = await User.findById(req.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: 'Utente non trovato' });
     }
-    if (honorFrame !== undefined) {
-      const owned = user.inventory.some(i => i.itemId === honorFrame);
-      if (owned || honorFrame === '') user.honorFrame = honorFrame;
-    }
-    if (avatarSkin !== undefined) {
-      const owned = user.inventory.some(i => i.itemId === avatarSkin) || avatarSkin === 'default';
-      if (owned) user.avatarSkin = avatarSkin;
-    }
-
-    await user.save();
-    res.json({ user: user.toPublicJSON() });
-  } catch (err) {
-    console.error('[Profile/PUT]', err);
-    res.status(500).json({ error: 'Errore aggiornamento profilo' });
+    
+    res.json({ user });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({ error: 'Errore nel caricamento del profilo' });
   }
 });
 
-// POST /api/profile/avatar — upload foto profilo
-router.post('/avatar', upload.single('avatar'), async (req, res) => {
+// Get user activities
+router.get('/activities', async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'Nessuna immagine caricata' });
-
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ error: 'Utente non trovato' });
-
-    // Rimuovi vecchia foto se non è la default
-    if (user.profilePic && !user.profilePic.startsWith('http')) {
-      const oldPath = path.join(__dirname, '..', 'public', user.profilePic);
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-    }
-
-    user.profilePic = `/uploads/${req.file.filename}`;
-    await user.save();
-
-    res.json({ profilePic: user.profilePic, message: 'Foto profilo aggiornata!' });
-  } catch (err) {
-    console.error('[Profile/Avatar]', err);
-    res.status(500).json({ error: err.message || 'Errore upload avatar' });
+    const activities = await Activity.find({ user: req.userId })
+      .sort({ createdAt: -1 })
+      .limit(20);
+    
+    res.json({ activities });
+  } catch (error) {
+    console.error('Get activities error:', error);
+    res.status(500).json({ error: 'Errore nel caricamento delle attività' });
   }
 });
 

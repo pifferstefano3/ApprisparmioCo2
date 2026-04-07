@@ -4,7 +4,47 @@ let currentTeam = null;
 
 document.addEventListener('DOMContentLoaded', function() {
   loadUserTeams();
+  setupEventListeners();
 });
+
+function setupEventListeners() {
+  // Team creation button
+  const createTeamBtn = document.getElementById('createTeamBtn');
+  if (createTeamBtn) {
+    createTeamBtn.addEventListener('click', openCreateTeamModal);
+  }
+  
+  // Modal close button
+  const closeModalBtn = document.getElementById('closeModalBtn');
+  if (closeModalBtn) {
+    closeModalBtn.addEventListener('click', closeCreateTeamModal);
+  }
+  
+  // Join team button
+  const joinTeamBtn = document.getElementById('joinTeamBtn');
+  if (joinTeamBtn) {
+    joinTeamBtn.addEventListener('click', joinTeam);
+  }
+  
+  // Form submission
+  const createTeamForm = document.getElementById('createTeamForm');
+  if (createTeamForm) {
+    createTeamForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      createTeam();
+    });
+  }
+  
+  // Close modal when clicking outside
+  const modal = document.getElementById('createTeamModal');
+  if (modal) {
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) {
+        closeCreateTeamModal();
+      }
+    });
+  }
+}
 
 async function loadUserTeams() {
   try {
@@ -267,6 +307,231 @@ function openTeamChat(teamId) {
 function viewTeamGoals(teamId) {
   // Redirect to goals page with team parameter
   window.location.href = `/goals.html?team=${teamId}`;
+}
+
+function openTeamChatInline(teamId) {
+  // Open inline chat modal
+  const team = teams.find(t => t._id === teamId);
+  if (!team) return;
+  
+  // Create chat modal
+  const chatModal = document.createElement('div');
+  chatModal.id = 'teamChatModal';
+  chatModal.style.cssText = `
+    position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.6);
+    backdrop-filter:blur(8px); align-items:center; justify-content:center;
+  `;
+  
+  chatModal.innerHTML = `
+    <div class="glass-card" style="width:90%; max-width:600px; height:80vh; border-radius:16px; padding:16px; display:flex; flex-direction:column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="color:white; margin:0;">Chat Team: ${escapeHtml(team.name)}</h3>
+        <button onclick="closeTeamChatModal()" class="btn btn-ghost btn-sm" style="width:auto; padding:6px 12px;">×</button>
+      </div>
+      
+      <div id="teamChatMessages" style="flex:1; overflow-y:auto; padding:8px; background:rgba(255,255,255,0.05); border-radius:8px; margin-bottom:12px;">
+        <div style="text-align:center; padding:20px 0; color:var(--text-muted);">
+          <div class="spinner" style="margin:0 auto 8px;"></div>
+          Caricamento chat...
+        </div>
+      </div>
+      
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="teamChatInput" class="form-input" placeholder="Scrivi un messaggio..." style="flex:1;">
+        <button onclick="sendTeamMessage('${teamId}')" class="btn btn-primary">Invia</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(chatModal);
+  
+  // Initialize team chat
+  initializeTeamChat(teamId);
+  
+  // Setup input events
+  const input = document.getElementById('teamChatInput');
+  input.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      sendTeamMessage(teamId);
+    }
+  });
+}
+
+function closeTeamChatModal() {
+  const modal = document.getElementById('teamChatModal');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+function initializeTeamChat(teamId) {
+  // Connect to Socket.io team room
+  if (typeof socket !== 'undefined' && socket) {
+    socket.emit('joinRoom', `team-${teamId}`);
+    loadTeamMessages(teamId);
+  } else {
+    // Load messages via API if socket not available
+    loadTeamMessagesAPI(teamId);
+  }
+}
+
+async function loadTeamMessages(teamId) {
+  try {
+    const response = await fetch(`/api/messages/room/team-${teamId}`);
+    const data = await response.json();
+    
+    if (response.ok && data.messages) {
+      renderTeamMessages(data.messages);
+    }
+  } catch (error) {
+    console.error('Error loading team messages:', error);
+    document.getElementById('teamChatMessages').innerHTML = `
+      <div style="text-align:center; padding:20px 0; color:var(--text-muted);">
+        Errore nel caricamento dei messaggi
+      </div>
+    `;
+  }
+}
+
+async function loadTeamMessagesAPI(teamId) {
+  try {
+    const response = await fetch(`/api/messages/room/team-${teamId}`);
+    const data = await response.json();
+    
+    if (response.ok && data.messages) {
+      renderTeamMessages(data.messages);
+    }
+  } catch (error) {
+    console.error('Error loading team messages:', error);
+  }
+}
+
+function renderTeamMessages(messages) {
+  const container = document.getElementById('teamChatMessages');
+  
+  if (messages.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:20px 0; color:var(--text-muted);">
+        Nessun messaggio in questa chat
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = '';
+  
+  messages.forEach(message => {
+    const messageElement = createTeamMessageElement(message);
+    container.appendChild(messageElement);
+  });
+  
+  // Scroll to bottom
+  container.scrollTop = container.scrollHeight;
+}
+
+function createTeamMessageElement(message) {
+  const div = document.createElement('div');
+  const isOwn = message.sender._id === getCurrentUserId();
+  
+  div.style.cssText = `
+    display:flex; flex-direction:${isOwn ? 'row-reverse' : 'row'};
+    gap:8px; margin-bottom:12px; align-items:flex-start;
+  `;
+  
+  const avatarHtml = `<div style="width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg, #2ecc71, #27ae60); border:2px solid white; display:flex; align-items:center; justify-content:center; font-size:0.8rem; color:white; font-weight:bold;">${message.sender.name.charAt(0).toUpperCase()}</div>`;
+  
+  const contentHtml = `
+    <div style="display:flex; flex-direction:column; max-width:70%; ${isOwn ? 'align-items:flex-end;' : ''}">
+      <div style="display:flex; align-items:center; margin-bottom:4px; ${isOwn ? 'justify-content:flex-end;' : ''}">
+        <span style="color:white; font-weight:600; font-size:0.8rem;">${escapeHtml(message.sender.name)}</span>
+        <span style="color:var(--text-muted); font-size:0.7rem; margin-left:8px;">${formatTime(message.createdAt)}</span>
+      </div>
+      <div style="padding:8px 12px; border-radius:16px; word-wrap:break-word; color:white; ${isOwn ? 'background:linear-gradient(135deg, #2ecc71, #27ae60);' : 'background:rgba(255,255,255,0.1);'}">
+        ${message.type === 'text' ? escapeHtml(message.content) : createFileContent(message)}
+      </div>
+    </div>
+  `;
+  
+  div.innerHTML = isOwn ? contentHtml + avatarHtml : avatarHtml + contentHtml;
+  
+  return div;
+}
+
+async function sendTeamMessage(teamId) {
+  const input = document.getElementById('teamChatInput');
+  const content = input.value.trim();
+  
+  if (!content) return;
+  
+  const messageData = {
+    content: content,
+    type: 'text',
+    room: `team-${teamId}`
+  };
+  
+  try {
+    const response = await fetch('/api/messages/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(messageData)
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      input.value = '';
+      // Reload messages or handle via Socket.io
+      loadTeamMessages(teamId);
+    } else {
+      showToast(data.error || 'Errore nell\'invio del messaggio', 'error');
+    }
+  } catch (error) {
+    console.error('Send team message error:', error);
+    showToast('Errore nell\'invio del messaggio', 'error');
+  }
+}
+
+// Helper functions
+function getCurrentUserId() {
+  // This should get the current user ID from session or local storage
+  return localStorage.getItem('userId') || null;
+}
+
+function formatTime(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+}
+
+function createFileContent(message) {
+  if (!message.file) return '';
+  
+  const file = message.file;
+  
+  if (file.mimetype.startsWith('image/')) {
+    return `<img src="${file.url}" alt="${file.originalName}" style="max-width:200px; max-height:200px; border-radius:8px;">`;
+  } else if (file.mimetype.startsWith('video/')) {
+    return `<video src="${file.url}" controls style="max-width:200px; max-height:200px; border-radius:8px;"></video>`;
+  } else {
+    return `
+      <div style="display:flex; align-items:center; gap:8px; padding:8px; background:rgba(255,255,255,0.1); border-radius:8px;">
+        <span style="font-size:1.2rem;">Team</span>
+        <div>
+          <div style="color:white; font-size:0.8rem;">${escapeHtml(file.originalName)}</div>
+          <div style="color:var(--text-muted); font-size:0.7rem;">${formatFileSize(file.size)}</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 // Helper functions

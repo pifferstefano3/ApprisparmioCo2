@@ -4,6 +4,7 @@ let currentRoom = 'global';
 let messages = [];
 let rooms = [];
 let currentUser = null;
+let onlineUsers = [];
 
 document.addEventListener('DOMContentLoaded', function() {
   initializeChat();
@@ -49,6 +50,10 @@ function connectSocket() {
     addMessage(message);
   });
   
+  socket.on('newPrivateMessage', (message) => {
+    addPrivateMessage(message);
+  });
+  
   socket.on('messageEdited', (message) => {
     updateMessage(message);
   });
@@ -58,19 +63,24 @@ function connectSocket() {
   });
   
   socket.on('userTyping', (data) => {
-    showTypingIndicator(data.userName);
+    showTypingIndicator(data.userName, data.roomId);
   });
   
   socket.on('userStopTyping', (data) => {
-    hideTypingIndicator(data.userId);
+    hideTypingIndicator(data.userId, data.roomId);
   });
   
   socket.on('onlineUsers', (users) => {
+    onlineUsers = users;
     updateOnlineUsers(users);
   });
   
   socket.on('roomInfo', (data) => {
     updateRoomInfo(data);
+  });
+  
+  socket.on('newMessageNotification', (data) => {
+    showNotification(data);
   });
   
   socket.on('error', (error) => {
@@ -359,6 +369,32 @@ function sendMessage() {
   });
 }
 
+// Private messaging
+function openPrivateChat(userId) {
+  const user = onlineUsers.find(u => u.userId === userId);
+  if (!user) {
+    showToast('Utente non online', 'error');
+    return;
+  }
+  
+  const roomId = `private-${currentUser._id}-${userId}`;
+  joinRoom(roomId);
+}
+
+function addPrivateMessage(message) {
+  // Check if we're in the correct private room
+  if (!currentRoom.startsWith('private-')) {
+    showNotification({
+      message: `Nuovo messaggio privato da ${message.sender.name}`,
+      sender: message.sender.name,
+      roomId: message.room
+    });
+    return;
+  }
+  
+  addMessage(message);
+}
+
 function attachFile() {
   document.getElementById('fileInput').click();
 }
@@ -409,6 +445,7 @@ function updateOnlineStatus(status) {
 }
 
 function updateOnlineUsers(users) {
+  onlineUsers = users;
   const statusElement = document.getElementById('onlineStatus');
   statusElement.textContent = `${users.length} utenti online`;
 }
@@ -418,12 +455,32 @@ function updateRoomInfo(data) {
   statusElement.textContent = `${data.userCount} utenti online`;
 }
 
-function showTypingIndicator(userName) {
+function showTypingIndicator(userName, roomId) {
+  if (roomId !== currentRoom) return;
+  
   // Show typing indicator implementation
+  const typingDiv = document.getElementById('typingIndicator');
+  if (!typingDiv) {
+    const indicator = document.createElement('div');
+    indicator.id = 'typingIndicator';
+    indicator.style.cssText = 'color:var(--text-muted); font-size:0.8rem; font-style:italic; margin-bottom:8px;';
+    document.getElementById('messagesList').appendChild(indicator);
+  }
+  
+  document.getElementById('typingIndicator').textContent = `${userName} sta scrivendo...`;
 }
 
-function hideTypingIndicator(userId) {
-  // Hide typing indicator implementation
+function hideTypingIndicator(userId, roomId) {
+  if (roomId !== currentRoom) return;
+  
+  const indicator = document.getElementById('typingIndicator');
+  if (indicator) {
+    indicator.remove();
+  }
+}
+
+function showNotification(data) {
+  showToast(`${data.sender}: ${data.message}`, 'info');
 }
 
 function addMessage(message) {
