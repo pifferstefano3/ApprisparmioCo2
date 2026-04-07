@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VERDENT - Obiettivi di Team</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/animations.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+  <div class="animated-bg"></div>
+  <div class="particles-container">
+    <div class="leaf"></div><div class="leaf"></div><div class="leaf"></div>
+    <div class="leaf"></div><div class="leaf"></div>
+    <div class="co2-particle"></div><div class="co2-particle"></div><div class="co2-particle"></div>
+  </div>
+
+  <div class="page pb-nav">
+    <!-- Header -->
+    <div class="page-header">
+      <a href="/dashboard.html" class="btn btn-ghost btn-sm" style="width:auto; padding:8px 14px; color:white;">Home</a>
+      <div class="header-user"><div class="header-username">Obiettivi Team</div></div>
+      <button onclick="openGoalModal()" class="btn btn-primary btn-sm" style="width:auto; padding:8px 16px;">+ Obiettivo</button>
+    </div>
+
+    <div class="container" style="padding-top:20px;">
+      <!-- Team Selector -->
+      <div class="glass-card" style="margin-bottom:16px;">
+        <h3 style="color:white; font-size:0.9rem; margin-bottom:12px;">Seleziona Team</h3>
+        <select id="teamSelector" class="form-input" style="width:100%;">
+          <option value="">Caricamento team...</option>
+        </select>
+      </div>
+
+      <!-- Goals Container -->
+      <div id="goalsContainer" style="display:flex; flex-direction:column; gap:12px;">
+        <div style="text-align:center; padding:40px 0; color:var(--text-muted);">
+          <div class="spinner" style="margin:0 auto 12px;"></div>
+          Seleziona un team per vedere gli obiettivi
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Goal Modal -->
+  <div id="goalModal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.6); backdrop-filter:blur(8px); align-items:center; justify-content:center;">
+    <div class="glass-card" style="width:90%; max-width:500px; border-radius:16px; padding:24px; max-height:90vh; overflow-y:auto;">
+      <h3 style="color:white; margin-bottom:16px;">Nuovo Obiettivo</h3>
+      
+      <div class="form-group">
+        <label class="form-label">Titolo *</label>
+        <input type="text" id="goalTitle" class="form-input" placeholder="Titolo dell'obiettivo..." maxlength="100">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Descrizione *</label>
+        <textarea id="goalDescription" class="form-input" rows="3" placeholder="Descrizione dettagliata..." maxlength="500"></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Punti Chiave</label>
+        <div id="keyPointsContainer">
+          <input type="text" class="form-input" placeholder="Punto chiave 1..." maxlength="200">
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="addKeyPoint()" style="margin-top:8px;">+ Aggiungi Punto</button>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Priorità</label>
+        <select id="goalPriority" class="form-input">
+          <option value="low">Bassa</option>
+          <option value="medium" selected>Media</option>
+          <option value="high">Alta</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Categoria</label>
+        <select id="goalCategory" class="form-input">
+          <option value="environmental" selected>Ambientale</option>
+          <option value="social">Sociale</option>
+          <option value="economic">Economico</option>
+          <option value="educational">Educativo</option>
+          <option value="health">Salute</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Data Scadenza (opzionale)</label>
+        <input type="date" id="goalDueDate" class="form-input">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Assegna a membri</label>
+        <div id="assigneesContainer" style="display:flex; flex-direction:column; gap:8px;">
+          <!-- Assignees will be populated here -->
+        </div>
+      </div>
+      
+      <div style="display:flex; gap:10px;">
+        <button type="button" class="btn btn-secondary" onclick="closeGoalModal()">Annulla</button>
+        <button type="button" class="btn btn-primary" onclick="createGoal()">Crea Obiettivo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <a href="/dashboard.html" class="nav-item"><span class="nav-icon">Home</span></a>
+    <a href="/teams.html" class="nav-item"><span class="nav-icon">Team</span></a>
+    <a href="/goals.html" class="nav-item active"><span class="nav-icon">Obiettivi</span></a>
+    <a href="/chat.html" class="nav-item"><span class="nav-icon">Chat</span></a>
+    <a href="/profile.html" class="nav-item"><span class="nav-icon">Profilo</span></a>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- CSS for Goal Transitions -->
+  <style>
+    .goal-item {
+      transition: all 0.3s ease;
+      background: linear-gradient(135deg, #ffd700, #ffed4e);
+      border: 2px solid #ffa500;
+      border-radius: 12px;
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .goal-item.completed {
+      background: linear-gradient(135deg, #808080, #a0a0a0);
+      border: 2px solid #606060;
+      transform: scale(0.98);
+    }
+    
+    .goal-item.completed::before {
+      content: 'COMPLETATO';
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(255,255,255,0.9);
+      color: #333;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      font-weight: bold;
+    }
+    
+    .goal-checkbox {
+      width: 24px;
+      height: 24px;
+      border: 2px solid #ffa500;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    
+    .goal-checkbox:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 10px rgba(255,165,0,0.5);
+    }
+    
+    .goal-item.completed .goal-checkbox {
+      background: #4ade80;
+      border-color: #22c55e;
+    }
+    
+    .goal-item.completed .goal-checkbox::after {
+      content: 'L';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    
+    .goal-title {
+      font-weight: bold;
+      color: #333;
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+      transition: color 0.3s ease;
+    }
+    
+    .goal-item.completed .goal-title {
+      color: #666;
+      text-decoration: line-through;
+    }
+    
+    .goal-description {
+      color: #555;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      margin-bottom: 8px;
+      transition: color 0.3s ease;
+    }
+    
+    .goal-item.completed .goal-description {
+      color: #777;
+    }
+    
+    .goal-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      font-size: 0.8rem;
+      color: #666;
+    }
+    
+    .goal-priority {
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: bold;
+      font-size: 0.7rem;
+    }
+    
+    .priority-high { background: #ef4444; color: white; }
+    .priority-medium { background: #f59e0b; color: white; }
+    .priority-low { background: #10b981; color: white; }
+    
+    .goal-assignees {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    
+    .assignee-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #2ecc71;
+      border: 1px solid white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      color: white;
+      font-weight: bold;
+    }
+    
+    .goal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    
+    .goal-btn {
+      padding: 4px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .goal-btn-edit {
+      background: #3b82f6;
+      color: white;
+    }
+    
+    .goal-btn-delete {
+      background: #ef4444;
+      color: white;
+    }
+    
+    .goal-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    @keyframes goalComplete {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(0.98); }
+    }
+    
+    .goal-item.completing {
+      animation: goalComplete 0.3s ease;
+    }
+  </style>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/goals.js"></script>
+</body>
+</html>

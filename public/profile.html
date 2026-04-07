@@ -48,12 +48,14 @@
           ⚠️ Email non verificata — <button onclick="resendVerification()" style="background:none;border:none;color:#4ade80;cursor:pointer;font-size:0.75rem;font-weight:600;">Reinvia verifica</button>
         </div>
 
-        <!-- Edit bio -->
-        <div style="margin-top:14px; display:flex; gap:8px; flex-direction:column;">
-          <input type="text" id="bioInput" class="form-input" placeholder="La tua bio ecologica (max 200 caratteri)..." maxlength="200">
-          <button class="btn btn-primary btn-sm" onclick="saveBio()">💾 Salva bio</button>
-        </div>
-      </div>
+        <!-- Edit Profile Form -->
+        <form id="profileForm" method="POST" action="/api/profile/update" enctype="multipart/form-data" style="margin-top:14px; display:flex; gap:8px; flex-direction:column;">
+          <input type="text" name="name" id="nameInput" class="form-input" placeholder="Il tuo nome..." maxlength="50">
+          <input type="text" name="bio" id="bioInput" class="form-input" placeholder="La tua bio ecologica (max 200 caratteri)..." maxlength="200">
+          <input type="number" name="trophies" id="trophiesInput" class="form-input" placeholder="Trofei..." min="0">
+          <input type="file" name="avatar" id="avatarInput" accept="image/*" style="display:none">
+          <button type="submit" class="btn btn-primary btn-sm">Aggiorna Profilo</button>
+        </form>
 
       <!-- Statistiche -->
       <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px;">

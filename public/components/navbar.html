@@ -1,0 +1,186 @@
+<!-- Navbar Persistente - Componente Globale -->
+<nav class="navbar-fixed">
+  <div class="navbar-container">
+    <div class="navbar-brand">
+      <h1>VERDENT</h1>
+      <span class="tagline">Ambiente Sostenibile</span>
+    </div>
+    
+    <div class="navbar-menu">
+      <a href="/dashboard.html" class="nav-link">Home</a>
+      <a href="/feed.html" class="nav-link">Feed</a>
+      <a href="/map.html" class="nav-link">Mappa</a>
+      <a href="/teams.html" class="nav-link">Team</a>
+      <a href="/goals.html" class="nav-link">Obiettivi</a>
+      <a href="/profile.html" class="nav-link">Profilo</a>
+    </div>
+    
+    <div class="navbar-user">
+      <div class="user-avatar">
+        <img id="navbar-avatar" src="/uploads/default-avatar.png" alt="Avatar">
+      </div>
+      <div class="user-info">
+        <div id="navbar-name" class="user-name">Caricamento...</div>
+        <div class="user-trophies">
+          <span class="trophy-icon">T</span>
+          <span id="navbar-trophies">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- CSS per Navbar -->
+<style>
+.navbar-fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+  backdrop-filter: blur(10px);
+}
+
+.navbar-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navbar-brand h1 {
+  color: white;
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin: 0;
+}
+
+.tagline {
+  color: rgba(255,255,255,0.8);
+  font-size: 0.8rem;
+  margin-left: 0.5rem;
+}
+
+.navbar-menu {
+  display: flex;
+  gap: 2rem;
+}
+
+.nav-link {
+  color: white;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.nav-link:hover, .nav-link.active {
+  background: rgba(255,255,255,0.2);
+  transform: translateY(-2px);
+}
+
+.navbar-user {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: white;
+}
+
+.user-avatar img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid white;
+  object-fit: cover;
+}
+
+.user-info {
+  text-align: right;
+}
+
+.user-name {
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.user-trophies {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+
+.trophy-icon {
+  background: gold;
+  color: #333;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.7rem;
+}
+
+@media (max-width: 768px) {
+  .navbar-container {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .navbar-menu {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+  }
+  
+  .navbar-user {
+    align-self: flex-end;
+  }
+}
+</style>
+
+<!-- JavaScript per Navbar -->
+<script>
+// Carica dati utente da sessione/API
+async function loadNavbarUserData() {
+  try {
+    const response = await fetch('/api/auth/me');
+    if (response.ok) {
+      const user = await response.json();
+      document.getElementById('navbar-name').textContent = user.name || 'Utente';
+      document.getElementById('navbar-trophies').textContent = user.trophies || 0;
+      
+      if (user.avatar) {
+        document.getElementById('navbar-avatar').src = `/uploads/${user.avatar}`;
+      }
+    }
+  } catch (error) {
+    console.error('Errore caricamento dati navbar:', error);
+  }
+}
+
+// Evidenzia link attivo basato su URL corrente
+function setActiveNavLink() {
+  const currentPath = window.location.pathname;
+  const navLinks = document.querySelectorAll('.nav-link');
+  
+  navLinks.forEach(link => {
+    if (link.getAttribute('href') === currentPath.split('/').pop()) {
+      link.classList.add('active');
+    }
+  });
+}
+
+// Inizializza navbar al caricamento
+document.addEventListener('DOMContentLoaded', () => {
+  loadNavbarUserData();
+  setActiveNavLink();
+});
+</script>

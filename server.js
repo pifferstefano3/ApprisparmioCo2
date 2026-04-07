@@ -5,6 +5,11 @@ const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
+
+// Import Socket.io and upload middleware
+const SocketManager = require('./middleware/socketManager');
+const { cleanupOnError } = require('./middleware/upload');
 
 const app = express();
 
@@ -48,7 +53,11 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // ─── Static Files ─────────────────────────────────────────────────────────────
+// Static Files Configuration
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
+app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth',        require('./routes/auth'));
@@ -60,6 +69,9 @@ app.use('/api/chat',        require('./routes/chat'));
 app.use('/api/feed',        require('./routes/feed'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));
 app.use('/api/challenges',  require('./routes/challenges'));
+app.use('/api/teams',       require('./routes/teams'));
+app.use('/api/goals',       require('./routes/goals'));
+app.use('/api/messages',    require('./routes/messages'));
 
 // ─── SPA Catch-all ────────────────────────────────────────────────────────────
 app.get('*', (req, res) => {
@@ -70,14 +82,20 @@ app.get('*', (req, res) => {
   }
 });
 
-// ─── MongoDB Anti-Timeout Connection ──────────────────────────────────────────
+// ─── MongoDB Atlas Optimized Connection ──────────────────────────────────────
 const MONGO_OPTIONS = {
-  serverSelectionTimeoutMS: 5000,
+  serverSelectionTimeoutMS: 10000,
   socketTimeoutMS: 45000,
-  connectTimeoutMS: 10000,
-  maxPoolSize: 10,
-  minPoolSize: 2,
+  connectTimeoutMS: 15000,
+  maxPoolSize: 15,
+  minPoolSize: 3,
   heartbeatFrequencyMS: 10000,
+  retryWrites: true,
+  retryReads: true,
+  w: 'majority',
+  readPreference: 'primaryPreferred',
+  bufferMaxEntries: 0,
+  bufferCommands: false,
 };
 
 let isConnected = false;
@@ -107,5 +125,17 @@ process.on('SIGINT', async () => {
 // ─── Start Server ──────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 connectDB().then(() => {
-  app.listen(PORT, () => console.log(`[VERDENT] Server in ascolto su http://localhost:${PORT}`));
+  // Create HTTP server
+  const server = http.createServer(app);
+  
+  // Initialize Socket.io
+  const socketManager = new SocketManager(server);
+  
+  // Make socket manager available to routes
+  app.set('io', socketManager.io);
+  
+  server.listen(PORT, () => {
+    console.log(`[VERDENT] Server in ascolto su http://localhost:${PORT}`);
+    console.log(`[VERDENT] Socket.io integrato e funzionante`);
+  });
 });
