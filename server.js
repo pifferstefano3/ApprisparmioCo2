@@ -73,6 +73,11 @@ app.use('/api/teams',       require('./routes/teams'));
 app.use('/api/goals',       require('./routes/goals'));
 app.use('/api/messages',    require('./routes/messages'));
 
+// Map route
+app.get('/map', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'map-basic.html'));
+});
+
 // ─── SPA Catch-all ────────────────────────────────────────────────────────────
 app.get('*', (req, res) => {
   if (!req.path.startsWith('/api')) {

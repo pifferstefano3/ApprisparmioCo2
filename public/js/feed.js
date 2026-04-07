@@ -4,6 +4,7 @@ let currentPage = 1;
 let totalPages  = 1;
 let currentPostId = null;
 let myUserId = null;
+let posts = [];
 
 async function init() {
   const me = await apiFetch('/api/auth/me');
@@ -17,10 +18,16 @@ async function loadFeed(page = 1, replace = false) {
 
   currentPage = res.data.pagination.page;
   totalPages  = res.data.pagination.pages;
+  
+  if (replace) {
+    posts = res.data.posts;
+    renderPosts();
+  } else {
+    posts.push(...res.data.posts);
+    appendPosts(res.data.posts);
+  }
 
   const container = document.getElementById('feedContainer');
-  if (replace) container.innerHTML = '';
-
   if (!res.data.posts.length && replace) {
     container.innerHTML = `
       <div class="glass-card" style="text-align:center; padding:40px 20px;">
@@ -28,13 +35,10 @@ async function loadFeed(page = 1, replace = false) {
         <div style="color:white; font-weight:600; margin-bottom:6px;">Il feed è vuoto</div>
         <div style="color:var(--text-muted); font-size:0.85rem; margin-bottom:16px;">Sii il primo a condividere il tuo viaggio ecologico!</div>
         <button class="btn btn-primary btn-sm" style="width:auto;" onclick="openPostModal()">+ Crea il primo post</button>
-      </div>`;
+      </div>
+    `;
     return;
   }
-
-  res.data.posts.forEach(post => {
-    container.appendChild(buildPostCard(post));
-  });
 
   const wrapper = document.getElementById('loadMoreWrapper');
   wrapper.style.display = currentPage < totalPages ? 'block' : 'none';

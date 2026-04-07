@@ -1,5 +1,15 @@
 const mongoose = require('mongoose');
 
+// Generate unique team code
+function generateTeamCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
 const TeamSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -12,7 +22,8 @@ const TeamSchema = new mongoose.Schema({
     required: true,
     unique: true,
     uppercase: true,
-    length: 8
+    length: 8,
+    default: generateTeamCode
   },
   creator: {
     type: mongoose.Schema.Types.ObjectId,

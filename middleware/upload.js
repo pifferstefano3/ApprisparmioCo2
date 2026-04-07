@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
     if (req.body.uploadType === 'chat') {
       uploadPath = path.join(__dirname, '../public/uploads/chat');
     } else if (req.body.uploadType === 'profile') {
-      uploadPath = path.join(__dirname, '../public/uploads/avatars');
+      uploadPath = path.join(__dirname, '../public/uploads/profile');
     } else if (req.body.uploadType === 'goal') {
       uploadPath = path.join(__dirname, '../public/uploads/goals');
     } else if (req.body.uploadType === 'feed') {
