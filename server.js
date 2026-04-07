@@ -93,9 +93,7 @@ const MONGO_OPTIONS = {
   retryWrites: true,
   retryReads: true,
   w: 'majority',
-  readPreference: 'primaryPreferred',
-  bufferMaxEntries: 0,
-  bufferCommands: false,
+  readPreference: 'primaryPreferred'
 };
 
 let isConnected = false;
