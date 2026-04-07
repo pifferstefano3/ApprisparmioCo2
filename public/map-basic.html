@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VERDENT - Mappa</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/animations.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+</head>
+<body>
+  <div class="animated-bg"></div>
+  <div class="particles-container">
+    <div class="leaf"></div><div class="leaf"></div><div class="leaf"></div>
+    <div class="leaf"></div><div class="leaf"></div>
+    <div class="co2-particle"></div><div class="co2-particle"></div><div class="co2-particle"></div>
+  </div>
+
+  <div class="page pb-nav" style="height:100vh; display:flex; flex-direction:column;">
+    <!-- Header -->
+    <div class="page-header">
+      <a href="/dashboard.html" class="btn btn-ghost btn-sm" style="width:auto; padding:8px 14px; color:white;">Home</a>
+      <div class="header-user"><div class="header-username">Mappa</div></div>
+      <button onclick="toggleTracking()" id="trackingBtn" class="btn btn-primary btn-sm" style="width:auto; padding:8px 16px;">Inizia Tracking</button>
+    </div>
+
+    <!-- Map Container -->
+    <div style="flex:1; position:relative; margin:16px;">
+      <div id="map" style="width:100%; height:100%; border-radius:12px; overflow:hidden;"></div>
+      
+      <!-- Map Controls -->
+      <div style="position:absolute; top:16px; right:16px; z-index:1000; display:flex; flex-direction:column; gap:8px;">
+        <button onclick="centerMap()" class="btn btn-secondary btn-sm" style="width:auto; padding:8px 12px;">Centra</button>
+        <button onclick="toggleLayers()" class="btn btn-secondary btn-sm" style="width:auto; padding:8px 12px;">Layer</button>
+      </div>
+      
+      <!-- Live Stats -->
+      <div id="liveStats" style="position:absolute; bottom:16px; left:16px; z-index:1000; display:none;">
+        <div class="glass-card" style="padding:12px; min-width:200px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span style="color:white; font-size:0.8rem;">Distanza</span>
+            <span style="color:#4ade80; font-weight:bold;" id="liveDistance">0.0 km</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span style="color:white; font-size:0.8rem;">Durata</span>
+            <span style="color:#4ade80; font-weight:bold;" id="liveDuration">00:00</span>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:white; font-size:0.8rem;">CO2 Risparmiata</span>
+            <span style="color:#4ade80; font-weight:bold;" id="liveCO2">0.0 kg</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transport Selection -->
+    <div style="padding:0 16px 16px;">
+      <div class="glass-card" style="padding:12px;">
+        <div style="color:white; font-weight:600; margin-bottom:8px;">Mezzo di Trasporto</div>
+        <div style="display:flex; gap:8px;">
+          <button onclick="selectTransport('walk')" class="transport-btn active" data-transport="walk">🚶</button>
+          <button onclick="selectTransport('bike')" class="transport-btn" data-transport="bike">🚴</button>
+          <button onclick="selectTransport('bus')" class="transport-btn" data-transport="bus">🚌</button>
+          <button onclick="selectTransport('train')" class="transport-btn" data-transport="train">🚆</button>
+          <button onclick="selectTransport('car')" class="transport-btn" data-transport="car">🚗</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <a href="/dashboard.html" class="nav-item"><span class="nav-icon">Home</span></a>
+    <a href="/teams.html" class="nav-item"><span class="nav-icon">Team</span></a>
+    <a href="/goals.html" class="nav-item"><span class="nav-icon">Obiettivi</span></a>
+    <a href="/chat.html" class="nav-item"><span class="nav-icon">Chat</span></a>
+    <a href="/profile.html" class="nav-item"><span class="nav-icon">Profilo</span></a>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    let map;
+    let currentTransport = 'walk';
+    let isTracking = false;
+    let trackingTimer;
+    let startTime;
+    let currentPosition;
+    let routeLine;
+    let markers = [];
+
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeMap();
+      setupEventListeners();
+    });
+
+    function initializeMap() {
+      // Initialize Leaflet map
+      map = L.map('map').setView([41.9028, 12.4964], 13); // Rome coordinates
+      
+      // Add tile layer
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      // Get user location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            currentPosition = [position.coords.latitude, position.coords.longitude];
+            map.setView(currentPosition, 15);
+            addCurrentLocationMarker();
+          },
+          (error) => {
+            console.error('Geolocation error:', error);
+            showToast('Impossibile ottenere la tua posizione', 'error');
+          }
+        );
+      }
+    }
+
+    function setupEventListeners() {
+      // Transport buttons
+      document.querySelectorAll('.transport-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          selectTransport(this.dataset.transport);
+        });
+      });
+    }
+
+    function selectTransport(transport) {
+      currentTransport = transport;
+      
+      // Update UI
+      document.querySelectorAll('.transport-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      document.querySelector(`[data-transport="${transport}"]`).classList.add('active');
+      
+      showToast(`Mezzo selezionato: ${getTransportName(transport)}`, 'info');
+    }
+
+    function getTransportName(transport) {
+      const names = {
+        walk: 'Camminata',
+        bike: 'Bicicletta',
+        bus: 'Autobus',
+        train: 'Treno',
+        car: 'Automobile'
+      };
+      return names[transport] || transport;
+    }
+
+    function toggleTracking() {
+      const btn = document.getElementById('trackingBtn');
+      const liveStats = document.getElementById('liveStats');
+      
+      if (isTracking) {
+        // Stop tracking
+        isTracking = false;
+        btn.textContent = 'Inizia Tracking';
+        btn.classList.remove('btn-danger');
+        btn.classList.add('btn-primary');
+        liveStats.style.display = 'none';
+        
+        if (trackingTimer) {
+          clearInterval(trackingTimer);
+        }
+        
+        // Save tracking data
+        saveTrackingData();
+        
+        showToast('Tracking fermato e salvato!', 'success');
+      } else {
+        // Start tracking
+        isTracking = true;
+        startTime = Date.now();
+        btn.textContent = 'Ferma Tracking';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-danger');
+        liveStats.style.display = 'block';
+        
+        // Start tracking
+        startTrackingUpdates();
+        
+        showToast('Tracking iniziato!', 'success');
+      }
+    }
+
+    function startTrackingUpdates() {
+      trackingTimer = setInterval(() => {
+        updateLiveStats();
+        
+        // Update position
+        if (navigator.geolocation) {
+          navigator.geolocation.watchPosition(
+            (position) => {
+              const newPosition = [position.coords.latitude, position.coords.longitude];
+              
+              if (currentPosition) {
+                // Add route line
+                if (routeLine) {
+                  map.removeLayer(routeLine);
+                }
+                
+                routeLine = L.polyline([currentPosition, newPosition], {
+                  color: '#4ade80',
+                  weight: 4,
+                  opacity: 0.7
+                }).addTo(map);
+              }
+              
+              currentPosition = newPosition;
+              addRouteMarker(newPosition);
+            }
+            },
+            (error) => {
+              console.error('Tracking error:', error);
+            }
+          );
+        }
+      }, 1000);
+    }
+
+    function updateLiveStats() {
+      if (!startTime) return;
+      
+      const elapsed = Date.now() - startTime;
+      const minutes = Math.floor(elapsed / 60000);
+      const seconds = Math.floor((elapsed % 60000) / 1000);
+      
+      // Estimate distance (simplified calculation)
+      const estimatedDistance = (elapsed / 60000) * getTransportSpeed(currentTransport);
+      const co2Saved = calculateCO2Saved(estimatedDistance, currentTransport);
+      
+      document.getElementById('liveDistance').textContent = estimatedDistance.toFixed(2) + ' km';
+      document.getElementById('liveDuration').textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      document.getElementById('liveCO2').textContent = co2Saved.toFixed(2) + ' kg';
+    }
+
+    function getTransportSpeed(transport) {
+      const speeds = {
+        walk: 5,      // km/h
+        bike: 15,
+        bus: 25,
+        train: 80,
+        car: 40
+      };
+      return speeds[transport] || 5;
+    }
+
+    function calculateCO2Saved(distance, transport) {
+      // CO2 emissions per km (kg)
+      const emissions = {
+        walk: 0,
+        bike: 0,
+        bus: 0.08,
+        train: 0.04,
+        car: 0.17
+      };
+      
+      // Calculate savings compared to car
+      const carEmissions = distance * 0.17;
+      const transportEmissions = distance * (emissions[transport] || 0);
+      
+      return Math.max(0, carEmissions - transportEmissions);
+    }
+
+    function addCurrentLocationMarker() {
+      if (currentPosition) {
+        L.marker(currentPosition, {
+          icon: L.divIcon({
+            className: 'current-location-marker',
+            html: '<div style="background:#4ade80; width:12px; height:12px; border-radius:50%; border:2px solid white;"></div>',
+            iconSize: [12, 12]
+          })
+        }).addTo(map);
+      }
+    }
+
+    function addRouteMarker(position) {
+      const marker = L.marker(position).addTo(map);
+      markers.push(marker);
+    }
+
+    function centerMap() {
+      if (currentPosition) {
+        map.setView(currentPosition, 15);
+      } else {
+        showToast('Posizione non disponibile', 'error');
+      }
+    }
+
+    function toggleLayers() {
+      // Placeholder for layer toggle functionality
+      showToast('Layer toggle coming soon', 'info');
+    }
+
+    function saveTrackingData() {
+      // Placeholder for saving tracking data
+      console.log('Saving tracking data...');
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `toast ${type}`;
+      toast.style.display = 'block';
+      
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 3000);
+    }
+
+    // CSS for transport buttons
+    const style = document.createElement('style');
+    style.textContent = `
+      .transport-btn {
+        padding:8px 12px; 
+        border:1px solid rgba(255,255,255,0.3);
+        background:rgba(255,255,255,0.1); 
+        color:white; 
+        border-radius:8px;
+        cursor:pointer; 
+        transition:all 0.2s ease;
+      }
+      .transport-btn:hover { 
+        background:rgba(255,255,255,0.2); 
+      }
+      .transport-btn.active {
+        background:linear-gradient(135deg, #2ecc71, #27ae60);
+        border-color:#2ecc71;
+      }
+    `;
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>

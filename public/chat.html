@@ -12,10 +12,11 @@
   <div class="animated-bg"></div>
   <div class="particles-container">
     <div class="leaf"></div><div class="leaf"></div><div class="leaf"></div>
+    <div class="leaf"></div><div class="leaf"></div>
     <div class="co2-particle"></div><div class="co2-particle"></div><div class="co2-particle"></div>
   </div>
 
-  <div class="page" style="display:flex; flex-direction:column; height:100dvh;">
+  <div class="page" style="display:flex; flex-direction:column; height:100vh;">
 
     <!-- Header fisso -->
     <div style="padding:16px 16px 0; flex-shrink:0;">
@@ -37,6 +38,12 @@
       </div>
     </div>
 
+    <!-- Chat Container -->
+    <div style="flex:1; display:flex; flex-direction:column; padding:0 16px;">
+      <div id="chatMessages" style="flex:1; overflow-y:auto; padding:16px; background:rgba(255,255,255,0.05); border-radius:12px; margin-bottom:16px;">
+        <div style="text-align:center; padding:40px 0; color:var(--text-muted);">
+          <div class="spinner" style="margin:0 auto 12px;"></div>
+          Caricamento chat...
     <!-- Chat messages -->
     <div id="chatMessages" style="flex:1; overflow-y:auto; padding:12px 16px; display:flex; flex-direction:column; gap:12px;">
       <!-- Messaggio benvenuto AI -->
