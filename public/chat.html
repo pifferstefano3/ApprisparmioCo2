@@ -2,8 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#2e8b57">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VERDENT — EcoChat AI</title>
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/css/animations.css">
@@ -123,7 +122,8 @@
     @keyframes typingBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
   </style>
 
+  <script src="/socket.io/socket.io.js"></script>
   <script src="/js/api.js"></script>
-  <script src="/js/chat.js"></script>
+  <script src="/js/chat-realtime.js"></script>
 </body>
 </html>
