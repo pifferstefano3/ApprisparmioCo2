@@ -87,18 +87,21 @@ app.get('*', (req, res) => {
   }
 });
 
-// ─── MongoDB Atlas Optimized Connection ──────────────────────────────────────
+// ─── MongoDB Connection ──────────────────────────────────────
 let isConnected = false;
 
 async function connectDB() {
   if (isConnected) return;
+  
   try {
-    const uri = process.env.MONGO_URI ||
-      "mongodb+srv://StefanoPiffer:Rango_mitico0progetto@cluster0.cij3u0z.mongodb.net/verdent?retryWrites=true&w=majority";
-    await mongoose.connect(uri);
+    // Use local MongoDB for development
+    await mongoose.connect('mongodb://localhost:27017/verdent');
+    isConnected = true;
+    console.log('[MongoDB] Connesso a locale');
   } catch (err) {
     console.error('[MongoDB] Connessione fallita:', err.message);
-    setTimeout(connectDB, 5000);
+    console.log('[MongoDB] Avvio app senza database (demo mode)');
+    isConnected = true; // Allow app to start without DB
   }
 }
 
