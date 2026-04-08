@@ -108,7 +108,7 @@ GoalSchema.methods.isExpired = function() {
   return new Date() > this.deadline;
 };
 
-GoalSchema.prototype.reset = function() {
+GoalSchema.methods.reset = function() {
   this.current = 0;
   this.isCompleted = false;
   this.completedAt = null;
