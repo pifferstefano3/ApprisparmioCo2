@@ -29,14 +29,63 @@ async function loadFeed(page = 1, replace = false) {
 
   const container = document.getElementById('feedContainer');
   if (!res.data.posts.length && replace) {
-    container.innerHTML = `
-      <div class="glass-card" style="text-align:center; padding:40px 20px;">
-        <div style="font-size:2.5rem; margin-bottom:12px;">📸</div>
-        <div style="color:white; font-weight:600; margin-bottom:6px;">Il feed è vuoto</div>
-        <div style="color:var(--text-muted); font-size:0.85rem; margin-bottom:16px;">Sii il primo a condividere il tuo viaggio ecologico!</div>
-        <button class="btn btn-primary btn-sm" style="width:auto;" onclick="openPostModal()">+ Crea il primo post</button>
-      </div>
+    // Show sample posts for new users
+    const samplePosts = [
+      {
+        _id: 'sample1',
+        username: 'EcoTeam VERDENT',
+        profilePic: null,
+        title: '🌱 Benvenuto nel Feed Eco!',
+        description: 'Condividi i tuoi viaggi sostenibili e ispira altri utenti. Ogni km in bici o a piedi conta!',
+        mediaUrl: null,
+        mediaType: 'image',
+        likesCount: 42,
+        commentsCount: 5,
+        likedByMe: false,
+        createdAt: new Date(Date.now() - 86400000).toISOString()
+      },
+      {
+        _id: 'sample2',
+        username: 'GreenTraveler',
+        profilePic: null,
+        title: '🚴‍♂️ 10km in bici oggi!',
+        description: 'Ho evitato l\'auto e ho pedalato fino al lavoro. CO2 risparmiata: 1.7kg! 💚',
+        mediaUrl: null,
+        mediaType: 'image',
+        likesCount: 28,
+        commentsCount: 3,
+        likedByMe: false,
+        createdAt: new Date(Date.now() - 172800000).toISOString()
+      },
+      {
+        _id: 'sample3',
+        username: 'EcoWarrior',
+        profilePic: null,
+        title: '🚌 Scoperto il bus 73',
+        description: 'Non sapevo che passasse così vicino a casa! Da oggi addio auto in città.',
+        mediaUrl: null,
+        mediaType: 'image',
+        likesCount: 15,
+        commentsCount: 8,
+        likedByMe: false,
+        createdAt: new Date(Date.now() - 259200000).toISOString()
+      }
+    ];
+    
+    posts = samplePosts;
+    renderPosts();
+    
+    // Add banner to encourage posting
+    const banner = document.createElement('div');
+    banner.className = 'glass-card';
+    banner.style.cssText = 'text-align:center; padding:20px; margin-bottom:16px; background:linear-gradient(135deg, rgba(46,139,87,0.3), rgba(74,222,128,0.1));';
+    banner.innerHTML = `
+      <div style="font-size:1.8rem; margin-bottom:8px;">📸</div>
+      <div style="color:white; font-weight:600; margin-bottom:6px;">Il tuo feed è vuoto</div>
+      <div style="color:var(--text-muted); font-size:0.85rem; margin-bottom:12px;">Sii il primo a condividere i tuoi viaggi ecologici!</div>
+      <button class="btn btn-primary btn-sm" style="width:auto;" onclick="openPostModal()">+ Crea il tuo primo post</button>
     `;
+    container.prepend(banner);
     return;
   }
 

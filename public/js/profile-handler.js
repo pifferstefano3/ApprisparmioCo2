@@ -11,32 +11,42 @@ document.addEventListener('DOMContentLoaded', function() {
       const originalText = submitBtn.textContent;
       
       // Show loading state
-      submitBtn.textContent = 'Aggiornamento...';
+      submitBtn.textContent = '💾 Salvataggio...';
       submitBtn.disabled = true;
       
       try {
+        console.log('[PROFILE] Sending update...');
         const response = await fetch('/api/profile/update', {
           method: 'POST',
           body: formData
         });
         
         const result = await response.json();
+        console.log('[PROFILE] Update response:', result);
         
         if (response.ok) {
-          // Update UI with new data
+          // Update UI with new data immediately
           if (result.user) {
             updateProfileUI(result.user);
           }
           
-          showToast(result.message || 'Profilo aggiornato con successo!', 'success');
+          // Show success feedback
+          submitBtn.textContent = '✅ Salvato!';
+          showToast(result.message || 'Profilo aggiornato!', 'success');
+          
+          // Reset button after 2 seconds
+          setTimeout(() => {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+          }, 2000);
         } else {
-          showToast(result.error || 'Errore nell\'aggiornamento del profilo', 'error');
+          showToast(result.error || 'Errore aggiornamento', 'error');
+          submitBtn.textContent = originalText;
+          submitBtn.disabled = false;
         }
       } catch (error) {
-        console.error('Profile update error:', error);
+        console.error('[PROFILE] Update error:', error);
         showToast('Errore di connessione', 'error');
-      } finally {
-        // Reset button state
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
       }
@@ -83,14 +93,18 @@ function setupAvatarUpload() {
 
 async function loadProfileData() {
   try {
-    const response = await fetch('/api/profile/me');
+    const response = await fetch('/api/auth/me');
     const data = await response.json();
     
     if (response.ok && data.user) {
       updateProfileUI(data.user);
+    } else {
+      console.error('[PROFILE] Failed to load user data:', data.error);
+      showToast('Errore caricamento profilo', 'error');
     }
   } catch (error) {
-    console.error('Load profile error:', error);
+    console.error('[PROFILE] Load profile error:', error);
+    showToast('Dati non disponibili', 'error');
   }
 }
 

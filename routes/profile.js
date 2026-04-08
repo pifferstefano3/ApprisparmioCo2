@@ -27,54 +27,62 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/profile/update - Update user profile (explicit route)
+// POST /api/profile/update - Update user profile (explicit route) with findByIdAndUpdate
 router.post('/update', uploadSingle('avatar', 'profile'), async (req, res) => {
   try {
     const userId = req.userId;
     const { name, bio, avatarUrl } = req.body;
+    
+    console.log('[PROFILE] Update request for user:', userId, 'Data:', { name, bio, avatarUrl, hasFile: !!req.file });
 
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({ error: 'Utente non trovato' });
-    }
-
-    // Update user fields with validation
+    // Build update object
+    const updateData = {};
+    
     if (name !== undefined && name.trim()) {
-      user.name = name.trim();
+      updateData.name = name.trim();
     }
     if (bio !== undefined) {
-      user.bio = bio.trim();
+      updateData.bio = bio.trim();
     }
     // Handle file upload or URL
     if (req.file) {
-      user.avatar = `/uploads/profile/${req.file.filename}`;
+      updateData.avatar = `/uploads/profile/${req.file.filename}`;
     } else if (avatarUrl && avatarUrl.trim()) {
-      user.avatar = avatarUrl.trim();
+      updateData.avatar = avatarUrl.trim();
+    }
+    
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: 'Nessun dato da aggiornare' });
     }
 
-    // Mark as modified and save
-    user.markModified('name');
-    user.markModified('bio');
-    user.markModified('avatar');
+    // Use atomic findByIdAndUpdate
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!updatedUser) {
+      console.error('[PROFILE] User not found:', userId);
+      return res.status(404).json({ error: 'Utente non trovato' });
+    }
     
-    const savedUser = await user.save();
-    console.log('Profile updated for user:', userId, 'New avatar:', savedUser.avatar);
+    console.log('[PROFILE] Successfully updated user:', userId, 'New avatar:', updatedUser.avatar);
 
     res.json({
-      message: 'Profilo aggiornato con successo',
+      message: 'Profilo aggiornato con successo ✅',
       user: {
-        id: savedUser._id,
-        name: savedUser.name,
-        bio: savedUser.bio,
-        avatar: savedUser.avatar,
-        points: savedUser.points,
-        co2Saved: savedUser.co2Saved,
-        honorTitle: savedUser.honorTitle
+        id: updatedUser._id,
+        name: updatedUser.name,
+        bio: updatedUser.bio,
+        avatar: updatedUser.avatar,
+        points: updatedUser.points,
+        co2Saved: updatedUser.co2Saved,
+        honorTitle: updatedUser.honorTitle
       }
     });
   } catch (error) {
-    console.error('Update profile error:', error);
+    console.error('[PROFILE] Update error:', error);
     res.status(500).json({ error: 'Errore nell\'aggiornamento del profilo: ' + error.message });
   }
 });

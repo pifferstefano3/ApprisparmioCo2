@@ -43,34 +43,59 @@ async function sendAIMessage() {
   sendBtn.disabled = true;
   aiInput.value = '';
   
+  // Create abort controller for 5s timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+    console.error('[AI CHAT] Timeout: Richiesta AI scaduta dopo 5s');
+  }, 5000);
+  
   try {
+    console.log('[AI CHAT] Invio messaggio:', message);
+    
     const response = await fetch('/api/ai/chat', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('verdent_token') || ''}`
       },
-      body: JSON.stringify({ message })
+      body: JSON.stringify({ message }),
+      signal: controller.signal
     });
     
-    const data = await response.json();
+    clearTimeout(timeoutId);
     
-    if (response.ok) {
+    console.log('[AI CHAT] Risposta ricevuta, status:', response.status);
+    
+    const data = await response.json();
+    console.log('[AI CHAT] Dati ricevuti:', data);
+    
+    if (response.ok && data.response) {
       // Add AI response
       addAIMessage(data.response);
       
       // Update stars if earned
-      if (data.pointsEarned) {
-        updateStars(data.pointsEarned, data.totalPoints);
-        showToast(`+${data.pointsEarned} stelle guadagnate!`, 'success');
+      if (data.bonusPointsAwarded && data.bonusPointsAwarded > 0) {
+        updateStars(data.bonusPointsAwarded);
+        showToast(`+${data.bonusPointsAwarded} stelle eco! 🌟`, 'success');
       }
     } else {
-      addAIMessage('Spiacente, c\'è stato un errore. Riprova più tardi.');
+      console.error('[AI CHAT] Errore risposta:', data.error || 'Nessuna risposta');
+      addAIMessage('⚠️ ' + (data.error || 'Errore nel servizio AI. Riprova tra qualche istante.'));
       showToast(data.error || 'Errore nella risposta AI', 'error');
     }
   } catch (error) {
-    console.error('AI Chat error:', error);
-    addAIMessage('Errore di connessione. Controlla la tua connessione e riprova.');
-    showToast('Errore di connessione', 'error');
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      console.error('[AI CHAT] Timeout errore: La richiesta ha impiegato più di 5 secondi');
+      addAIMessage('⏱️ Il server sta impiegando troppo tempo. Riprova più tardi.');
+      showToast('Timeout - Il server non risponde', 'error');
+    } else {
+      console.error('[AI CHAT] Errore di connessione:', error);
+      addAIMessage('❌ Errore di connessione. Verifica la tua rete e riprova.');
+      showToast('Errore di connessione', 'error');
+    }
   } finally {
     // Reset button state
     sendBtn.textContent = originalText;
