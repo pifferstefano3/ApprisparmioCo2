@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
-const authMiddleware = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
@@ -51,7 +51,7 @@ router.post('/send', async (req, res) => {
     
     // Create message object
     const messageData = {
-      id: Date.now().toString(), // Temporary ID
+      id: Date.now().toString(),
       room: room.trim(),
       sender: {
         id: userId,

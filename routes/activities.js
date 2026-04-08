@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Activity = require('../models/Activity');
 const User = require('../models/User');
-const authMiddleware = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
@@ -13,111 +13,149 @@ const BASE_STARS_PER_KM = {
   bus:         8,
   tram:        8,
   carpool:     5,
-  carpool_ai:  7,   // AI-managed carpooling vale un po' di più
-  car:         0,
-  airplane:    0,   // aereo non genera stelle
+  train:       6,
+  car:         1,
+  scooter:    10,
+  motorbike:   3,
+  metro:       7,
 };
 
-const VALID_TRANSPORTS = ['walk','bike','bus','tram','carpool','carpool_ai','car','airplane'];
-
-// POST /api/activities
+// POST /api/activities - Log activity
 router.post('/', async (req, res) => {
   try {
-    const {
-      transport, distanceKm, routeCoords = [],
-      weather = 'unknown', durationMinutes = 0,
-      aiBonus = 0, notes = '', passengers = 1,
-    } = req.body;
+    const userId = req.userId;
+    const { type, title, description, distance, duration, location, metadata } = req.body;
 
-    if (!transport || !distanceKm) {
-      return res.status(400).json({ error: 'Mezzo di trasporto e distanza obbligatori' });
+    if (!type || !title) {
+      return res.status(400).json({ error: 'Tipo e titolo sono obbligatori' });
     }
-    if (!VALID_TRANSPORTS.includes(transport)) {
-      return res.status(400).json({ error: 'Mezzo di trasporto non valido' });
-    }
-
-    const baseStars  = Math.round((BASE_STARS_PER_KM[transport] || 0) * distanceKm);
-    const totalStars = baseStars + Math.max(0, Math.round(aiBonus));
 
     const activity = new Activity({
-      userId: req.userId,
-      transport,
-      distanceKm: parseFloat(distanceKm),
-      passengers: Math.max(1, parseInt(passengers) || 1),
-      routeCoords,
-      weather,
-      durationMinutes,
-      aiBonus: Math.round(aiBonus),
-      pointsEarned: totalStars,
-      notes,
+      user: userId,
+      type,
+      title: title.trim(),
+      description: description ? description.trim() : '',
+      distance: distance || 0,
+      duration: duration || 0,
+      location: location || { type: 'Point', coordinates: [0, 0] },
+      metadata: metadata || {}
     });
-    await activity.save(); // pre-save calcola co2Saved e co2Points
 
-    // ─── Aggiorna statistiche utente ─────────────────────────────────────────
-    const user = await User.findById(req.userId);
+    // Calculate points and CO2 saved
+    activity.calculatePoints();
+    activity.calculateCO2Saved();
 
-    // Stelle (spendibili) — non scendono mai sotto 0
-    user.stars  = Math.max(0, (user.stars  || 0) + totalStars);
-    user.points = user.stars;
+    await activity.save();
 
-    // co2Points (non spendibili, per classifica) → solo per mezzi green
-    if (activity.co2Points > 0) {
-      user.co2Points = parseFloat(((user.co2Points || 0) + activity.co2Points).toFixed(4));
+    // Update user stats
+    const user = await User.findById(userId);
+    if (user) {
+      user.points += activity.points;
+      user.co2Saved += activity.co2Saved;
+      user.updateHonorTitle();
+      await user.save();
     }
-
-    // co2Saved (valore assoluto, può essere negativo per aereo)
-    user.co2Saved = parseFloat(((user.co2Saved || 0) + activity.co2Saved).toFixed(4));
-
-    // km sostenibili (solo mezzi non-auto, non-aereo)
-    const greenTransports = ['walk','bike','bus','tram','carpool','carpool_ai'];
-    if (greenTransports.includes(transport)) {
-      user.kmSustainable = parseFloat(((user.kmSustainable || 0) + parseFloat(distanceKm)).toFixed(2));
-      user.updateStreak();
-
-      // Trofei automatici
-      if (user.streak.current >= 7  && !user.trophies.includes('streak_7'))  user.trophies.push('streak_7');
-      if (user.kmSustainable >= 100 && !user.trophies.includes('km_100'))    user.trophies.push('km_100');
-      if (user.co2Saved >= 10       && !user.trophies.includes('co2_10kg'))  user.trophies.push('co2_10kg');
-    }
-
-    await user.save();
 
     res.status(201).json({
-      activity,
-      stats: {
-        starsEarned:  totalStars,
-        baseStars,
-        aiBonus:      activity.aiBonus,
-        co2Saved:     activity.co2Saved,
-        co2Points:    activity.co2Points,
-        totalStars:   user.stars,
-        co2PointsTotal: user.co2Points,
-        streak:       user.streak.current,
-        trophies:     user.trophies,
-      },
+      message: 'Attività registrata con successo',
+      activity: activity
     });
-  } catch (err) {
-    console.error('[Activities/POST]', err);
-    res.status(500).json({ error: 'Errore nel salvataggio attività' });
+  } catch (error) {
+    console.error('Create activity error:', error);
+    res.status(500).json({ error: error.message || 'Errore nella registrazione dell\'attività' });
   }
 });
 
-// GET /api/activities?page=1&limit=10
+// GET /api/activities - Get user activities
 router.get('/', async (req, res) => {
   try {
-    const page  = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.min(50, parseInt(req.query.limit) || 10);
-    const skip  = (page - 1) * limit;
+    const userId = req.userId;
+    const limit = parseInt(req.query.limit) || 50;
 
-    const [activities, total] = await Promise.all([
-      Activity.find({ userId: req.userId }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      Activity.countDocuments({ userId: req.userId }),
-    ]);
+    const activities = await Activity.getUserActivities(userId, limit);
 
-    res.json({ activities, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
-  } catch (err) {
-    console.error('[Activities/GET]', err);
-    res.status(500).json({ error: 'Errore nel recupero attività' });
+    res.json({
+      activities: activities
+    });
+  } catch (error) {
+    console.error('Get activities error:', error);
+    res.status(500).json({ error: 'Errore nel caricamento delle attività' });
+  }
+});
+
+// GET /api/activities/stats - Get user stats
+router.get('/stats', async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const stats = await Activity.getUserStats(userId);
+
+    if (stats.length === 0) {
+      return res.json({
+        totalPoints: 0,
+        totalCO2Saved: 0,
+        totalActivities: 0
+      });
+    }
+
+    res.json(stats[0]);
+  } catch (error) {
+    console.error('Get stats error:', error);
+    res.status(500).json({ error: 'Errore nel caricamento delle statistiche' });
+  }
+});
+
+// GET /api/activities/type/:type - Get activities by type
+router.get('/type/:type', async (req, res) => {
+  try {
+    const { type } = req.params;
+    const limit = parseInt(req.query.limit) || 50;
+
+    const activities = await Activity.getActivitiesByType(type, limit);
+
+    res.json({
+      activities: activities
+    });
+  } catch (error) {
+    console.error('Get activities by type error:', error);
+    res.status(500).json({ error: 'Errore nel caricamento delle attività' });
+  }
+});
+
+// DELETE /api/activities/:id - Delete activity
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    const activity = await Activity.findById(id);
+
+    if (!activity) {
+      return res.status(404).json({ error: 'Attività non trovata' });
+    }
+
+    // Check if user owns the activity
+    if (activity.user.toString() !== userId) {
+      return res.status(403).json({ error: 'Non hai permesso di eliminare questa attività' });
+    }
+
+    // Remove points from user
+    const user = await User.findById(userId);
+    if (user) {
+      user.points -= activity.points;
+      user.co2Saved -= activity.co2Saved;
+      user.updateHonorTitle();
+      await user.save();
+    }
+
+    await Activity.findByIdAndDelete(id);
+
+    res.json({
+      message: 'Attività eliminata con successo'
+    });
+  } catch (error) {
+    console.error('Delete activity error:', error);
+    res.status(500).json({ error: 'Errore nell\'eliminazione dell\'attività' });
   }
 });
 

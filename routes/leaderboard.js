@@ -1,42 +1,78 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
-const authMiddleware = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
-// GET /api/leaderboard?limit=50
+// GET /api/leaderboard - Get leaderboard
 router.get('/', async (req, res) => {
   try {
-    const limit = Math.min(100, parseInt(req.query.limit) || 50);
+    const limit = parseInt(req.query.limit) || 50;
+    const type = req.query.type || 'points'; // points, co2Saved, activities
 
-    const users = await User.find()
-      .select('username co2Points co2Saved kmSustainable avatarSkin honorTitle profilePic streak')
-      .sort({ co2Points: -1 })
+    let sortField = 'points';
+    if (type === 'co2Saved') sortField = 'co2Saved';
+    if (type === 'activities') sortField = 'createdAt';
+
+    const users = await User.find({ isActive: true })
+      .sort({ [sortField]: -1 })
       .limit(limit)
-      .lean();
+      .select('name avatar points co2Saved honorTitle trophies')
+      .limit(limit);
 
-    const ranked = users.map((u, i) => ({
-      rank: i + 1,
-      username: u.username,
-      co2Points: parseFloat((u.co2Points || 0).toFixed(2)),
-      co2SavedKg: parseFloat((u.co2Saved || 0).toFixed(2)),
-      kmSustainable: parseFloat((u.kmSustainable || 0).toFixed(1)),
-      avatarSkin: u.avatarSkin || 'default',
-      honorTitle: u.honorTitle || '',
-      profilePic: u.profilePic || '',
-      streak: u.streak?.current || 0,
+    // Add rankings
+    const leaderboard = users.map((user, index) => ({
+      rank: index + 1,
+      name: user.name,
+      avatar: user.avatar,
+      points: user.points,
+      co2Saved: user.co2Saved,
+      honorTitle: user.honorTitle,
+      trophies: user.trophies
     }));
 
-    // Trova la posizione dell'utente corrente
-    const myRank = ranked.findIndex(u => u.username);
-    const me = await User.findById(req.userId).select('co2Points username').lean();
-    const myPosition = ranked.findIndex(u => u.username === me?.username);
+    res.json({
+      leaderboard: leaderboard,
+      type: type
+    });
+  } catch (error) {
+    console.error('Get leaderboard error:', error);
+    res.status(500).json({ error: 'Errore nel caricamento della classifica' });
+  }
+});
 
-    res.json({ leaderboard: ranked, myPosition: myPosition + 1, total: ranked.length });
-  } catch (err) {
-    console.error('[Leaderboard/GET]', err);
-    res.status(500).json({ error: 'Errore classifica' });
+// GET /api/leaderboard/user - Get user's ranking
+router.get('/user', async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const user = await User.findById(userId).select('name avatar points co2Saved honorTitle trophies');
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Utente non trovato' });
+    }
+
+    // Get user's ranking
+    const rank = await User.countDocuments({ 
+      isActive: true, 
+      points: { $gt: user.points } 
+    }) + 1;
+
+    res.json({
+      user: {
+        rank: rank,
+        name: user.name,
+        avatar: user.avatar,
+        points: user.points,
+        co2Saved: user.co2Saved,
+        honorTitle: user.honorTitle,
+        trophies: user.trophies
+      }
+    });
+  } catch (error) {
+    console.error('Get user ranking error:', error);
+    res.status(500).json({ error: 'Errore nel caricamento della classifica utente' });
   }
 });
 
