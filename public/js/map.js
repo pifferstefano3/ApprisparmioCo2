@@ -18,6 +18,7 @@ const TRANSPORT_INFO = {
   bike:       { label:'Bici',       icon:'🚴' },
   bus:        { label:'Autobus',    icon:'🚌' },
   tram:       { label:'Tram',       icon:'🚃' },
+  train:      { label:'Treno',      icon:'🚆' },
   carpool:    { label:'Carpool',    icon:'🚗' },
   carpool_ai: { label:'Carpool AI', icon:'🤖' },
   car:        { label:'Auto',       icon:'🚙' },
@@ -114,6 +115,10 @@ document.querySelectorAll('.weather-btn').forEach(btn => {
 document.getElementById('startBtn').addEventListener('click', () => {
   if (!selectedTransport) { showToast('Seleziona un mezzo di trasporto', 'error'); return; }
 
+  // Show live stats overlay
+  const overlay = document.getElementById('liveStatsOverlay');
+  if (overlay) overlay.style.display = 'block';
+
   if (isManualMode) {
     const manualKm = parseFloat(document.getElementById('manualDistInput').value);
     if (!manualKm || manualKm < 1) {
@@ -192,25 +197,47 @@ function onPosition(pos) {
   }
 }
 
-function onGeoError(err) { showToast(`Errore GPS: ${err.message}`, 'error'); }
-
-function updateLiveStats() {
-  document.getElementById('distanceVal').textContent = totalDistance.toFixed(2);
-  document.getElementById('trackDist').textContent   = totalDistance.toFixed(2);
+function onGeoError(err) { 
+  console.error('[MAP] GPS Error:', err.code, err.message);
+  let errorMsg = 'Errore GPS';
+  switch(err.code) {
+    case 1: errorMsg = 'Permesso geolocalizzazione negato'; break;
+    case 2: errorMsg = 'Posizione non disponibile'; break;
+    case 3: errorMsg = 'Timeout geolocalizzazione'; break;
+  }
+  showToast(`${errorMsg}. Usa la modalità manuale per aereo.`, 'error'); 
 }
 
-function updateTimer() {
+function updateLiveStats() {
+  const km = totalDistance.toFixed(2);
+  document.getElementById('distanceVal').textContent = km;
+  document.getElementById('trackDist').textContent   = km;
+  
+  // Update live overlay if exists
+  const displayDistance = document.getElementById('displayDistance');
+  if (displayDistance) {
+    displayDistance.textContent = km;
+  }
+}
+
+function updateLiveDuration() {
+  const displayDuration = document.getElementById('displayDuration');
+  if (displayDuration && startTime) {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const m = Math.floor(elapsed / 60), s = elapsed % 60;
+    displayDuration.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+  }
+}
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
   const m = Math.floor(elapsed / 60), s = elapsed % 60;
   const f = `${m}:${s.toString().padStart(2,'0')}`;
   document.getElementById('durationVal').textContent = f;
   document.getElementById('trackTime').textContent   = f;
-}
-
-function setStatus(state, text) {
-  document.getElementById('statusDot').className = `status-dot${state === 'tracking' ? ' tracking' : ''}`;
-  document.getElementById('statusText').textContent = text;
-}
+  
+  // Update live overlay
+  const displayDuration = document.getElementById('displayDuration');
+  if (displayDuration) {
+    displayDuration.textContent = f;
 
 /* ─── Stop Tracking ──────────────────────────────────────────────────────────── */
 document.getElementById('stopBtn').addEventListener('click', async () => {
@@ -223,29 +250,68 @@ document.getElementById('stopBtn').addEventListener('click', async () => {
   }
 
   document.getElementById('stopBtn').disabled = true;
-  document.getElementById('stopBtn').textContent = '💾 Salvataggio...';
+  document.getElementById('stopBtn').textContent = '🤖 Elaborazione punti con AI...';
 
-  const aiRes = await apiFetch('/api/ai/score-trip', {
+  // Step 1: Calculate score via Gemini AI
+  console.log('[MAP] Requesting AI point calculation...');
+  const aiCalcRes = await apiFetch('/api/tracks/calculate-score', {
     method: 'POST',
-    body: { transport: selectedTransport, distanceKm, weather: selectedWeather, passengers: selectedPassengers },
+    body: { transport: selectedTransport, distanceKm }
   });
 
-  const aiBonus = aiRes?.ok ? (aiRes.data.aiBonus || 0) : 0;
+  let pointsEarned = 0;
+  let ecoScore = 50;
+  let aiCalculated = false;
+  let aiRawResponse = '';
 
-  const actRes = await apiFetch('/api/activities', {
+  if (aiCalcRes?.ok) {
+    pointsEarned = aiCalcRes.data.points || 0;
+    ecoScore = aiCalcRes.data.ecoScore || 50;
+    aiCalculated = aiCalcRes.data.aiCalculated || false;
+    aiRawResponse = aiCalcRes.data.aiRawResponse || '';
+    console.log(`[MAP] AI calculated: ${pointsEarned} points (eco score: ${ecoScore})`);
+  } else {
+    console.error('[MAP] AI calculation failed, using fallback');
+    // Fallback calculation
+    const multipliers = { walk: 10, bike: 10, bus: 6, tram: 7, train: 8, carpool: 4, carpool_ai: 5, car: 1, airplane: -5 };
+    pointsEarned = Math.max(0, Math.round(distanceKm * (multipliers[selectedTransport] || 1)));
+  }
+
+  document.getElementById('stopBtn').textContent = '💾 Salvataggio...';
+
+  // Step 2: Save track with AI-calculated points
+  const trackRes = await apiFetch('/api/tracks', {
     method: 'POST',
     body: {
-      transport: selectedTransport, distanceKm,
-      routeCoords: routeCoords.slice(-200),
-      weather: selectedWeather, durationMinutes, aiBonus,
+      transport: selectedTransport,
+      coordinates: routeCoords.slice(-500),
+      distanceKm,
+      durationMinutes,
+      weather: selectedWeather,
       passengers: selectedPassengers,
+      startTime: new Date(startTime).toISOString(),
+      endTime: new Date().toISOString()
     },
   });
 
-  if (actRes?.ok) {
-    showPointsOverlay(actRes.data.stats, aiRes?.data?.message || '', aiRes?.data?.carpoolingAdvice);
+  if (trackRes?.ok) {
+    const stats = {
+      starsEarned: trackRes.data.track.pointsEarned,
+      co2Saved: trackRes.data.track.co2Saved,
+      distanceKm: distanceKm,
+      ecoScore: trackRes.data.ecoScore,
+      aiCalculated: trackRes.data.aiCalculated
+    };
+    
+    const aiMessage = aiCalculated 
+      ? `🤖 Punteggio calcolato dall'AI! (${ecoScore}/100 eco-score)` 
+      : 'Punteggio calcolato con formula standard';
+      
+    showPointsOverlay(stats, aiMessage, null);
+    console.log('[MAP] Track saved successfully with AI points:', trackRes.data);
   } else {
-    showToast(actRes?.data?.error || 'Errore nel salvataggio', 'error');
+    console.error('[MAP] Track save failed:', trackRes?.data?.error);
+    showToast(trackRes?.data?.error || 'Errore nel salvataggio', 'error');
     resetUI();
   }
 });

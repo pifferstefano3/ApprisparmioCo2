@@ -17,9 +17,15 @@ async function apiFetch(endpoint, options = {}) {
     config.body = JSON.stringify(config.body);
   }
 
+  // Allow custom timeout (default 10s, shop/feed use 3s)
+  const timeoutMs = options.timeout || 10000;
+
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      console.warn(`[API] Timeout after ${timeoutMs}ms for ${endpoint}`);
+    }, timeoutMs);
     
     const res = await fetch(endpoint, { ...config, signal: controller.signal });
     clearTimeout(timeoutId);
@@ -34,12 +40,17 @@ async function apiFetch(endpoint, options = {}) {
 
     return { ok: res.ok, status: res.status, data };
   } catch (error) {
-    console.error('API Fetch Error:', error);
+    console.error('[API] Fetch Error:', endpoint, error);
     if (error.name === 'AbortError') {
-      return { ok: false, status: 408, data: { error: 'Timeout - Riprova più tardi' } };
+      return { ok: false, status: 408, data: { error: `Timeout - Dati non disponibili dopo ${timeoutMs/1000}s` } };
     }
     return { ok: false, status: 0, data: { error: 'Errore di connessione. Controlla la tua rete.' } };
   }
+}
+
+/* ─── Fast API Fetch with 3s timeout for Shop and Feed ──────────────────────── */
+async function apiFetchFast(endpoint, options = {}) {
+  return apiFetch(endpoint, { ...options, timeout: 3000 });
 }
 
 /* ─── Safe API Wrapper with Try/Catch ────────────────────────────────────────── */

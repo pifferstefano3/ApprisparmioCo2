@@ -152,6 +152,55 @@ p  { font-size: 0.95rem; }
   transition: all 0.3s ease;
 }
 
+.nav-item.active {
+  color: white;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.nav-item.active::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ─── Fix Contrast Issues ─────────────────────────────────────────────────────── */
+.text-contrast {
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.glass-card {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.page-header {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.85));
+  border-bottom: 1px solid rgba(74, 222, 128, 0.2);
+}
+
+.header-avatar {
+  background: linear-gradient(135deg, #2e8b57, #4ade80);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.header-points {
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+
+/* Ensure all text has proper contrast */
+.glass-card h3,
+.glass-card .feed-title,
+.glass-card .chat-bubble {
+  color: white;
+}
+
+.feed-desc,
+.bubble-content {
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .nav-item:hover::before,
 .nav-item.active::before {
   opacity: 1;

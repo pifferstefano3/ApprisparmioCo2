@@ -6,8 +6,25 @@ let pendingBuyId = null;
 
 /* ─── Init ───────────────────────────────────────────────────────────────────── */
 async function init() {
-  const res = await apiFetch('/api/shop/items');
-  if (!res?.ok) { showToast('Errore nel caricamento del catalogo', 'error'); return; }
+  // Use fast 3s timeout for shop to prevent lag
+  const res = await apiFetchFast('/api/shop/items');
+  
+  if (!res?.ok) {
+    const grid = document.getElementById('shopGrid');
+    if (res?.status === 408) {
+      // Timeout error
+      grid.innerHTML = `
+        <div style="grid-column:span 2; text-align:center; padding:40px 20px; color:var(--text-muted);">
+          <div style="font-size:2rem; margin-bottom:12px;">⏱️</div>
+          <div style="margin-bottom:8px;">Il server sta impiegando troppo tempo</div>
+          <button class="btn btn-primary btn-sm" onclick="init()">Riprova</button>
+        </div>
+      `;
+    } else {
+      showToast('Errore nel caricamento del catalogo: ' + (res?.data?.error || ''), 'error');
+    }
+    return;
+  }
 
   allItems = res.data.items;
   document.getElementById('shopPoints').textContent = res.data.userPoints || 0;

@@ -61,6 +61,7 @@ app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
 // Routes
 app.use('/api/auth',        require('./routes/auth'));
 app.use('/api/activities',  require('./routes/activities'));
+app.use('/api/tracks',      require('./routes/tracks'));
 app.use('/api/ai',          require('./routes/ai'));
 app.use('/api/shop',        require('./routes/shop'));
 app.use('/api/profile',     require('./routes/profile'));

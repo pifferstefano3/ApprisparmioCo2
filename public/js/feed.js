@@ -13,8 +13,25 @@ async function init() {
 }
 
 async function loadFeed(page = 1, replace = false) {
-  const res = await apiFetch(`/api/feed?page=${page}&limit=10`);
-  if (!res?.ok) { showToast('Errore caricamento feed', 'error'); return; }
+  // Use fast 3s timeout for feed to prevent lag
+  const res = await apiFetchFast(`/api/feed?page=${page}&limit=10`);
+  
+  if (!res?.ok) { 
+    const container = document.getElementById('feedContainer');
+    if (res?.status === 408) {
+      // Timeout error
+      container.innerHTML = `
+        <div style="text-align:center; padding:40px 20px; color:var(--text-muted);">
+          <div style="font-size:2rem; margin-bottom:12px;">⏱️</div>
+          <div style="margin-bottom:8px;">Il server sta impiegando troppo tempo</div>
+          <button class="btn btn-primary btn-sm" onclick="loadFeed(1, true)">Riprova</button>
+        </div>
+      `;
+    } else {
+      showToast('Errore caricamento feed: ' + (res?.data?.error || ''), 'error'); 
+    }
+    return; 
+  }
 
   currentPage = res.data.pagination.page;
   totalPages  = res.data.pagination.pages;
