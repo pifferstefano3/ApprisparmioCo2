@@ -1,52 +1,41 @@
 const mongoose = require('mongoose');
 
 const MessageSchema = new mongoose.Schema({
-  content: {
+  room: {
     type: String,
-    required: function() {
-      return this.type === 'text';
-    },
-    maxlength: 1000,
+    required: true,
     trim: true
-  },
-  type: {
-    type: String,
-    enum: ['text', 'file', 'image', 'video'],
-    default: 'text'
   },
   sender: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  room: {
+  content: {
     type: String,
     required: true,
-    index: true
+    trim: true,
+    maxlength: 1000
   },
-  roomType: {
+  type: {
     type: String,
-    enum: ['global', 'team', 'private'],
-    required: true
+    enum: ['text', 'image', 'video', 'file'],
+    default: 'text'
   },
-  file: {
-    filename: String,
-    originalName: String,
-    mimetype: String,
-    size: Number,
-    url: String
-  },
-  replyTo: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Message'
+  mediaUrl: {
+    type: String,
+    default: null
   },
   reactions: [{
-    user: {
+    userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     },
-    emoji: String,
-    addedAt: {
+    emoji: {
+      type: String,
+      required: true
+    },
+    createdAt: {
       type: Date,
       default: Date.now
     }
@@ -56,132 +45,115 @@ const MessageSchema = new mongoose.Schema({
     default: false
   },
   editedAt: {
-    type: Date
+    type: Date,
+    default: null
   },
   isDeleted: {
     type: Boolean,
     default: false
   },
   deletedAt: {
-    type: Date
+    type: Date,
+    default: null
   },
-  readBy: [{
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    readAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
+  deletedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
   createdAt: {
     type: Date,
-    default: Date.now,
-    index: true
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
-}, {
-  timestamps: true
 });
 
-// Indexes for better performance
+// Index for faster queries
 MessageSchema.index({ room: 1, createdAt: -1 });
 MessageSchema.index({ sender: 1 });
-MessageSchema.index({ 'readBy.user': 1 });
+MessageSchema.index({ createdAt: -1 });
 
-// Virtual for message metadata
-MessageSchema.virtual('metadata').get(function() {
-  return {
-    id: this._id,
-    type: this.type,
-    roomType: this.roomType,
-    hasFile: !!this.file,
-    hasReactions: this.reactions.length > 0,
-    isEdited: this.isEdited,
-    replyCount: this.replyTo ? 1 : 0
-  };
+// Pre-save middleware to update updatedAt
+MessageSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
 });
 
-// Method to add reaction
+// Instance methods
 MessageSchema.methods.addReaction = function(userId, emoji) {
-  // Remove existing reaction from same user
-  this.reactions = this.reactions.filter(reaction => 
-    reaction.user.toString() !== userId.toString()
+  const existingReaction = this.reactions.find(r => 
+    r.userId.toString() === userId.toString() && r.emoji === emoji
   );
   
-  // Add new reaction
-  this.reactions.push({
-    user: userId,
-    emoji: emoji,
-    addedAt: new Date()
-  });
-  
-  return this.save();
-};
-
-// Method to remove reaction
-MessageSchema.methods.removeReaction = function(userId) {
-  this.reactions = this.reactions.filter(reaction => 
-    reaction.user.toString() !== userId.toString()
-  );
-  
-  return this.save();
-};
-
-// Method to mark as read
-MessageSchema.methods.markAsRead = function(userId) {
-  const existingRead = this.readBy.find(read => 
-    read.user.toString() === userId.toString()
-  );
-  
-  if (!existingRead) {
-    this.readBy.push({
-      user: userId,
-      readAt: new Date()
+  if (!existingReaction) {
+    this.reactions.push({
+      userId,
+      emoji,
+      createdAt: new Date()
     });
-    return this.save();
   }
-  
-  return Promise.resolve(this);
 };
 
-// Method to edit message
-MessageSchema.methods.editContent = function(newContent) {
-  if (this.type !== 'text') {
-    throw new Error('Solo i messaggi di testo possono essere modificati');
-  }
+MessageSchema.methods.removeReaction = function(userId, emoji) {
+  const index = this.reactions.findIndex(r => 
+    r.userId.toString() === userId.toString() && r.emoji === emoji
+  );
   
+  if (index > -1) {
+    this.reactions.splice(index, 1);
+  }
+};
+
+MessageSchema.methods.edit = function(newContent) {
   this.content = newContent;
   this.isEdited = true;
   this.editedAt = new Date();
-  
-  return this.save();
 };
 
-// Method to soft delete
-MessageSchema.methods.softDelete = function() {
+MessageSchema.methods.delete = function(deletedBy) {
   this.isDeleted = true;
   this.deletedAt = new Date();
-  
-  return this.save();
+  this.deletedBy = deletedBy;
 };
 
-// Pre-save middleware
-MessageSchema.pre('save', function(next) {
-  // Validate room format based on type
-  if (this.roomType === 'global' && this.room !== 'global') {
-    return next(new Error('La room globale deve essere "global"'));
-  }
-  
-  if (this.roomType === 'team' && !this.room.startsWith('team-')) {
-    return next(new Error('Le room di team devono iniziare con "team-"'));
-  }
-  
-  if (this.roomType === 'private' && !this.room.startsWith('private-')) {
-    return next(new Error('Le room private devono iniziare con "private-"'));
-  }
-  
-  next();
-});
+// Static methods
+MessageSchema.statics.getRoomMessages = function(room, limit = 50, skip = 0) {
+  return this.find({ room: room, isDeleted: false })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .populate('sender', 'name avatar');
+};
+
+MessageSchema.statics.getUserMessages = function(userId, limit = 50) {
+  return this.find({ sender: userId, isDeleted: false })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .populate('sender', 'name avatar');
+};
+
+MessageSchema.statics.searchMessages = function(room, query, limit = 50) {
+  return this.find({
+    room: room,
+    content: { $regex: query, $options: 'i' },
+    isDeleted: false
+  })
+  .sort({ createdAt: -1 })
+  .limit(limit)
+  .populate('sender', 'name avatar');
+};
+
+MessageSchema.statics.getRecentMessages = function(rooms, limit = 50) {
+  return this.find({
+    room: { $in: rooms },
+    isDeleted: false
+  })
+  .sort({ createdAt: -1 })
+  .limit(limit)
+  .populate('sender', 'name avatar');
+};
 
 module.exports = mongoose.model('Message', MessageSchema);

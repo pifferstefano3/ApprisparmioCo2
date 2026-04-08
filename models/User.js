@@ -29,85 +29,151 @@ const userSchema = new mongoose.Schema({
     trim: true,
     match: [/^\S+@\S+\.\S+$/, 'Email non valida'],
   },
-  passwordHash: { type: String, required: true },
-
-  // ─── Valuta duale ──────────────────────────────────────────────────────────
-  // stars: moneta spendibile (EcoShop, badge, ecc.)
-  stars: { type: Number, default: 0, min: 0 },
-  // co2Points: punti CO2 non spendibili, usati solo per la classifica globale
-  co2Points: { type: Number, default: 0, min: 0 },
-  // points: alias retrocompatibile → maps to stars in lettura
-  points: { type: Number, default: 0, min: 0 },
-
-  // ─── Statistiche ───────────────────────────────────────────────────────────
-  co2Saved: { type: Number, default: 0, min: 0 },
-  kmSustainable: { type: Number, default: 0, min: 0 },
-  streak: { type: streakSchema, default: () => ({}) },
-
-  // ─── Gamification ──────────────────────────────────────────────────────────
-  inventory: { type: [inventoryItemSchema], default: [] },
-  avatarSkin: { type: String, default: 'default' },
-  trophies: { type: [String], default: [] },
-  honorTitle: { type: String, default: '' },       // titolo onorifico sbloccato
-  honorFrame: { type: String, default: '' },        // cornice/badge speciale
-
-  // ─── Profilo ───────────────────────────────────────────────────────────────
-  profilePic: { type: String, default: '' },        // percorso immagine (Multer)
-  bio: { type: String, maxlength: 200, default: '' },
-
-  // ─── Email verification ────────────────────────────────────────────────────
-  emailVerified: { type: Boolean, default: false },
-  emailToken: { type: String, default: null },
-  emailTokenExpires: { type: Date, default: null },
-
-  // ─── Sfide mensili ─────────────────────────────────────────────────────────
-  challengeProgress: { type: Number, default: 0 },  // progresso sfida corrente
-  challengeMonth: { type: String, default: '' },    // es. "2025-06"
-}, {
-  timestamps: true,
+  password: {
+    type: String,
+    required: [true, 'Password obbligatoria'],
+    minlength: [6, 'Password minimo 6 caratteri'],
+  },
+  name: {
+    type: String,
+    trim: true,
+    maxlength: 50,
+  },
+  bio: {
+    type: String,
+    maxlength: 200,
+    trim: true,
+  },
+  avatar: {
+    type: String,
+    default: null,
+  },
+  points: {
+    type: Number,
+    default: 0,
+  },
+  trophies: {
+    type: Number,
+    default: 0,
+  },
+  co2Saved: {
+    type: Number,
+    default: 0,
+  },
+  honorTitle: {
+    type: String,
+    default: 'Eco-Novice',
+  },
+  inventory: [inventoryItemSchema],
+  streak: streakSchema,
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
-// ─── Pre-save (retrocompat points→stars) ──────────────────────────────────────
-userSchema.pre('save', function (next) {
-  // Mantieni points e stars sincronizzati per retrocompatibilità
-  if (this.isModified('stars')) this.points = this.stars;
-  if (this.isModified('points') && !this.isModified('stars')) this.stars = this.points;
+// Index for faster queries
+userSchema.index({ email: 1 });
+userSchema.index({ username: 1 });
+userSchema.index({ points: -1 });
+
+// Pre-save middleware to hash password
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Pre-save middleware to update updatedAt
+userSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
   next();
 });
 
-// Metodo per confrontare password
-userSchema.methods.comparePassword = async function (plainPassword) {
-  return bcrypt.compare(plainPassword, this.passwordHash);
+// Instance methods
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Metodo per aggiornare streak
-userSchema.methods.updateStreak = function () {
-  const now = new Date();
-  const last = this.streak.lastActivity;
-  if (!last) {
-    this.streak.current = 1;
+userSchema.methods.addPoints = function(pointsToAdd) {
+  this.points += pointsToAdd;
+  this.updateHonorTitle();
+};
+
+userSchema.methods.updateHonorTitle = function() {
+  if (this.points >= 1000) {
+    this.honorTitle = 'Eco-Legend';
+  } else if (this.points >= 500) {
+    this.honorTitle = 'Eco-Master';
+  } else if (this.points >= 250) {
+    this.honorTitle = 'Eco-Expert';
+  } else if (this.points >= 100) {
+    this.honorTitle = 'Eco-Warrior';
+  } else if (this.points >= 50) {
+    this.honorTitle = 'Eco-Enthusiast';
   } else {
-    const diffDays = Math.floor((now - last) / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) {
-      // già aggiornato oggi
-    } else if (diffDays === 1) {
+    this.honorTitle = 'Eco-Novice';
+  }
+};
+
+userSchema.methods.updateStreak = function() {
+  const now = new Date();
+  const lastActivity = this.streak.lastActivity;
+  
+  if (!lastActivity) {
+    this.streak.current = 1;
+    this.streak.max = 1;
+    this.streak.lastActivity = now;
+  } else {
+    const daysSinceLastActivity = Math.floor((now - lastActivity) / (1000 * 60 * 60 * 24));
+    
+    if (daysSinceLastActivity <= 1) {
       this.streak.current += 1;
+      if (this.streak.current > this.streak.max) {
+        this.streak.max = this.streak.current;
+      }
     } else {
       this.streak.current = 1;
     }
+    
+    this.streak.lastActivity = now;
   }
-  if (this.streak.current > this.streak.max) this.streak.max = this.streak.current;
-  this.streak.lastActivity = now;
 };
 
-// Esclude passwordHash dal JSON di risposta
-userSchema.methods.toPublicJSON = function () {
-  const obj = this.toObject();
-  delete obj.passwordHash;
-  delete obj.emailToken;
-  delete obj.emailTokenExpires;
-  delete obj.__v;
-  return obj;
+// Static methods
+userSchema.statics.findByEmail = function(email) {
+  return this.findOne({ email: email.toLowerCase() });
 };
+
+userSchema.statics.findByUsername = function(username) {
+  return this.findOne({ username: username.toLowerCase() });
+};
+
+// Virtual fields
+userSchema.virtual('postCount').get(function() {
+  return this.posts ? this.posts.length : 0;
+});
+
+userSchema.virtual('teamCount').get(function() {
+  return this.teams ? this.teams.length : 0;
+});
+
+// Ensure virtual fields are included in JSON
+userSchema.set('toJSON', { virtuals: true });
+userSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('User', userSchema);

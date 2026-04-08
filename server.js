@@ -86,31 +86,38 @@ app.get('*', (req, res) => {
   }
 });
 
-// MongoDB Connection
+// MongoDB Connection - ONLY ATLAS, NO LOCALHOST FALLBACK
 let isConnected = false;
 
 async function connectDB() {
   if (isConnected) return;
   
   try {
-    // Use local MongoDB for development
-    await mongoose.connect('mongodb://localhost:27017/verdent');
+    // Use ONLY environment variable for MongoDB Atlas - NO LOCALHOST FALLBACK
+    const mongoUri = process.env.MONGODB_URI;
+    
+    if (!mongoUri) {
+      throw new Error('MONGODB_URI environment variable not set. Please set MONGODB_URI in .env file.');
+    }
+    
+    console.log('[VERDENT] Connessione a MongoDB Atlas...');
+    await mongoose.connect(mongoUri);
     isConnected = true;
-    console.log('[MongoDB] Connesso a locale');
+    console.log('[VERDENT] Connessione ad Atlas riuscita');
   } catch (err) {
-    console.error('[MongoDB] Connessione fallita:', err.message);
-    console.log('[MongoDB] Avvio app senza database (demo mode)');
-    isConnected = true; // Allow app to start without DB
+    console.error('[VERDENT] Connessione ad Atlas fallita:', err.message);
+    console.error('[VERDENT] ERRORE CRITICO: Impossibile connettersi al database. Server terminato.');
+    process.exit(1);
   }
 }
 
-mongoose.connection.on('connected',    () => { isConnected = true;  console.log('[MongoDB] Connesso a Atlas'); });
-mongoose.connection.on('error',    err => { isConnected = false; console.error('[MongoDB] Errore:', err.message); });
-mongoose.connection.on('disconnected', () => { isConnected = false; console.warn('[MongoDB] Disconnesso  riconnessione...'); setTimeout(connectDB, 5000); });
+mongoose.connection.on('connected',    () => { isConnected = true;  console.log('[VERDENT] Connesso a Atlas'); });
+mongoose.connection.on('error',    err => { isConnected = false; console.error('[VERDENT] Errore Atlas:', err.message); });
+mongoose.connection.on('disconnected', () => { isConnected = false; console.warn('[VERDENT] Disconnesso da Atlas, riconnessione...'); setTimeout(connectDB, 5000); });
 
 process.on('SIGINT', async () => {
   await mongoose.connection.close();
-  console.log('[MongoDB] Connessione chiusa per shutdown');
+  console.log('[VERDENT] Connessione Atlas chiusa per shutdown');
   process.exit(0);
 });
 
@@ -129,5 +136,6 @@ connectDB().then(() => {
   server.listen(PORT, () => {
     console.log(`[VERDENT] Server in ascolto su http://localhost:${PORT}`);
     console.log(`[VERDENT] Socket.io integrato e funzionante`);
+    console.log(`[VERDENT] MongoDB Atlas: CONNESSO`);
   });
 });

@@ -77,13 +77,12 @@ TeamSchema.pre('save', function(next) {
 
 // Instance methods
 TeamSchema.methods.addMember = function(userId, role = 'member') {
-  // Check if user is already a member
   const existingMember = this.members.find(member => 
     member.user.toString() === userId.toString()
   );
   
   if (existingMember) {
-    return false; // User already a member
+    return false;
   }
   
   this.members.push({
@@ -101,7 +100,7 @@ TeamSchema.methods.removeMember = function(userId) {
   );
   
   if (memberIndex === -1) {
-    return false; // User not found in members
+    return false;
   }
   
   this.members.splice(memberIndex, 1);
@@ -127,7 +126,7 @@ TeamSchema.methods.updateMemberRole = function(userId, newRole) {
   );
   
   if (!member) {
-    return false; // User not found in members
+    return false;
   }
   
   member.role = newRole;
@@ -160,10 +159,9 @@ TeamSchema.virtual('memberCount').get(function() {
 });
 
 TeamSchema.virtual('isFull').get(function() {
-  return this.members.length >= 10; // Max 10 members per team
+  return this.members.length >= 10;
 });
 
-// Ensure virtual fields are included in JSON
 TeamSchema.set('toJSON', { virtuals: true });
 TeamSchema.set('toObject', { virtuals: true });
 
