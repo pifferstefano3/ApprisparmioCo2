@@ -64,8 +64,7 @@ const TeamSchema = new mongoose.Schema({
   }
 });
 
-// Index for faster queries
-TeamSchema.index({ code: 1 });
+// Index for faster queries (code already has unique: true)
 TeamSchema.index({ creator: 1 });
 TeamSchema.index({ 'members.user': 1 });
 

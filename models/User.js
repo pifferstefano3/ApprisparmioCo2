@@ -80,10 +80,9 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-// Index for faster queries
-userSchema.index({ email: 1 });
-userSchema.index({ username: 1 });
-userSchema.index({ points: -1 });
+// Index for faster queries (email and username already have unique: true)
+userSchema.index({ teamId: 1 });
+userSchema.index({ createdAt: -1 });
 
 // Pre-save middleware to hash password
 userSchema.pre('save', async function(next) {
