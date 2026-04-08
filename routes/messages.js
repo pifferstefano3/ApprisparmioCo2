@@ -2,99 +2,56 @@ const express = require('express');
 const router = express.Router();
 const Message = require('../models/Message');
 const Team = require('../models/Team');
-const auth = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
+
+router.use(authMiddleware);
 
 // Get messages for a room
-router.get('/room/:roomId', auth, async (req, res) => {
+router.get('/room/:roomId', async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { page = 1, limit = 50, before } = req.query;
-    
-    // Validate room access
-    const roomType = getRoomType(roomId);
-    if (!await canAccessRoom(req.user._id, roomId, roomType)) {
-      return res.status(403).json({ error: 'Non hai accesso a questa room' });
-    }
-    
-    // Build query
-    const query = { 
-      room: roomId, 
-      isDeleted: false 
-    };
-    
-    if (before) {
-      query.createdAt = { $lt: new Date(before) };
-    }
-    
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
     
-    const messages = await Message.find(query)
-      .populate('sender', 'name avatar')
-      .populate('replyTo', 'content sender')
-      .populate('reactions.user', 'name')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-    
-    // Mark messages as read
-    const messageIds = messages.map(msg => msg._id);
-    await Message.updateMany(
-      { _id: { $in: messageIds }, 'readBy.user': { $ne: req.user._id } },
-      { $push: { readBy: { user: req.user._id, readAt: new Date() } } }
-    );
+    const messages = await Message.getRoomMessages(roomId, limit, skip);
     
     res.json({
-      messages: messages.reverse(), // Return in chronological order
+      messages: messages,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        hasMore: messages.length === parseInt(limit)
+        page,
+        limit,
+        total: messages.length,
+        pages: Math.ceil(messages.length / limit)
       }
     });
-    
   } catch (error) {
-    console.error('Get room messages error:', error);
+    console.error('Get messages error:', error);
     res.status(500).json({ error: 'Errore nel caricamento dei messaggi' });
   }
 });
 
-// Send message
-router.post('/send', auth, async (req, res) => {
+// Send a message
+router.post('/send', async (req, res) => {
   try {
-    const { content, type = 'text', room, replyTo } = req.body;
+    const { room, content, type = 'text', mediaUrl } = req.body;
+    const userId = req.userId;
     
-    if (!room) {
-      return res.status(400).json({ error: 'Room è obbligatoria' });
-    }
-    
-    if (type === 'text' && (!content || content.trim().length === 0)) {
-      return res.status(400).json({ error: 'Il contenuto è obbligatorio per i messaggi di testo' });
-    }
-    
-    // Validate room access
-    const roomType = getRoomType(room);
-    if (!await canAccessRoom(req.user._id, room, roomType)) {
-      return res.status(403).json({ error: 'Non hai accesso a questa room' });
+    if (!room || !content) {
+      return res.status(400).json({ error: 'Stanza e contenuto sono obbligatori' });
     }
     
     const message = new Message({
-      content: type === 'text' ? content.trim() : '',
-      type: type,
-      sender: req.user._id,
-      room: room,
-      roomType: roomType,
-      replyTo: replyTo || null
+      room: room.trim(),
+      sender: userId,
+      content: content.trim(),
+      type,
+      mediaUrl: mediaUrl || null
     });
     
     await message.save();
     
-    // Populate message for response
-    await message.populate('sender', 'name avatar');
-    if (replyTo) {
-      await message.populate('replyTo', 'content sender');
-    }
-    
-    // Emit to Socket.io (this would be handled by the socket server)
+    // Emit message via Socket.io
     const io = req.app.get('io');
     if (io) {
       io.to(room).emit('newMessage', message);
@@ -104,44 +61,77 @@ router.post('/send', auth, async (req, res) => {
       message: 'Messaggio inviato con successo',
       data: message
     });
-    
   } catch (error) {
     console.error('Send message error:', error);
     res.status(500).json({ error: 'Errore nell\'invio del messaggio' });
   }
 });
 
-// Edit message
-router.put('/:id/edit', auth, async (req, res) => {
+// Add reaction to message
+router.post('/:messageId/react', async (req, res) => {
   try {
-    const { content } = req.body;
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+    const userId = req.userId;
     
-    if (!content || content.trim().length === 0) {
+    if (!emoji) {
+      return res.status(400).json({ error: 'L\'emoji è obbligatoria' });
+    }
+    
+    const message = await Message.findById(messageId);
+    
+    if (!message) {
+      return res.status(404).json({ error: 'Messaggio non trovato' });
+    }
+    
+    message.addReaction(userId, emoji);
+    await message.save();
+    
+    // Emit reaction via Socket.io
+    const io = req.app.get('io');
+    if (io) {
+      io.to(message.room).emit('newReaction', {
+        messageId,
+        userId,
+        emoji
+      });
+    }
+    
+    res.json({
+      message: 'Reazione aggiunta con successo'
+    });
+  } catch (error) {
+    console.error('Add reaction error:', error);
+    res.status(500).json({ error: 'Errore nell\'aggiunta della reazione' });
+  }
+});
+
+// Edit message
+router.put('/:messageId', async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { content } = req.body;
+    const userId = req.userId;
+    
+    if (!content) {
       return res.status(400).json({ error: 'Il contenuto è obbligatorio' });
     }
     
-    const message = await Message.findById(req.params.id);
+    const message = await Message.findById(messageId);
     
     if (!message) {
       return res.status(404).json({ error: 'Messaggio non trovato' });
     }
     
     // Check if user is the sender
-    if (message.sender.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'Puoi modificare solo i tuoi messaggi' });
+    if (message.sender.toString() !== userId) {
+      return res.status(403).json({ error: 'Solo il mittente può modificare il messaggio' });
     }
     
-    // Check if message is too old (24 hours)
-    const messageAge = Date.now() - message.createdAt.getTime();
-    if (messageAge > 24 * 60 * 60 * 1000) {
-      return res.status(400).json({ error: 'I messaggi più vecchi di 24 ore non possono essere modificati' });
-    }
+    message.edit(content.trim());
+    await message.save();
     
-    await message.editContent(content.trim());
-    
-    await message.populate('sender', 'name avatar');
-    
-    // Emit to Socket.io
+    // Emit edit event via Socket.io
     const io = req.app.get('io');
     if (io) {
       io.to(message.room).emit('messageEdited', message);
@@ -151,7 +141,6 @@ router.put('/:id/edit', auth, async (req, res) => {
       message: 'Messaggio modificato con successo',
       data: message
     });
-    
   } catch (error) {
     console.error('Edit message error:', error);
     res.status(500).json({ error: 'Errore nella modifica del messaggio' });
@@ -159,197 +148,77 @@ router.put('/:id/edit', auth, async (req, res) => {
 });
 
 // Delete message
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:messageId', async (req, res) => {
   try {
-    const message = await Message.findById(req.params.id);
+    const { messageId } = req.params;
+    const userId = req.userId;
+    
+    const message = await Message.findById(messageId);
     
     if (!message) {
       return res.status(404).json({ error: 'Messaggio non trovato' });
     }
     
-    // Check if user is the sender or has admin privileges
-    if (message.sender.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'Puoi eliminare solo i tuoi messaggi' });
+    // Check if user is the sender
+    if (message.sender.toString() !== userId) {
+      return res.status(403).json({ error: 'Solo il mittente può eliminare il messaggio' });
     }
     
-    await message.softDelete();
+    message.delete(userId);
+    await message.save();
     
-    // Emit to Socket.io
+    // Emit delete event via Socket.io
     const io = req.app.get('io');
     if (io) {
-      io.to(message.room).emit('messageDeleted', { messageId: message._id });
+      io.to(message.room).emit('messageDeleted', { messageId });
     }
     
-    res.json({ message: 'Messaggio eliminato con successo' });
-    
+    res.json({
+      message: 'Messaggio eliminato con successo'
+    });
   } catch (error) {
     console.error('Delete message error:', error);
     res.status(500).json({ error: 'Errore nell\'eliminazione del messaggio' });
   }
 });
 
-// Add reaction
-router.post('/:id/react', auth, async (req, res) => {
+// Get user messages
+router.get('/user/:userId', async (req, res) => {
   try {
-    const { emoji } = req.body;
+    const { userId } = req.params;
+    const limit = parseInt(req.query.limit) || 50;
     
-    if (!emoji || emoji.length > 2) {
-      return res.status(400).json({ error: 'Emoji non valida' });
-    }
-    
-    const message = await Message.findById(req.params.id);
-    
-    if (!message) {
-      return res.status(404).json({ error: 'Messaggio non trovato' });
-    }
-    
-    // Validate room access
-    if (!await canAccessRoom(req.user._id, message.room, message.roomType)) {
-      return res.status(403).json({ error: 'Non hai accesso a questa room' });
-    }
-    
-    await message.addReaction(req.user._id, emoji);
-    
-    await message.populate('reactions.user', 'name');
-    
-    // Emit to Socket.io
-    const io = req.app.get('io');
-    if (io) {
-      io.to(message.room).emit('reactionAdded', {
-        messageId: message._id,
-        reactions: message.reactions
-      });
-    }
+    const messages = await Message.getUserMessages(userId, limit);
     
     res.json({
-      message: 'Reazione aggiunta con successo',
-      reactions: message.reactions
+      messages: messages
     });
-    
   } catch (error) {
-    console.error('Add reaction error:', error);
-    res.status(500).json({ error: 'Errore nell\'aggiunta della reazione' });
+    console.error('Get user messages error:', error);
+    res.status(500).json({ error: 'Errore nel caricamento dei messaggi' });
   }
 });
 
-// Remove reaction
-router.post('/:id/unreact', auth, async (req, res) => {
+// Search messages
+router.get('/search/:room', async (req, res) => {
   try {
-    const message = await Message.findById(req.params.id);
+    const { room } = req.params;
+    const { query } = req.query;
+    const limit = parseInt(req.query.limit) || 50;
     
-    if (!message) {
-      return res.status(404).json({ error: 'Messaggio non trovato' });
+    if (!query) {
+      return res.status(400).json({ error: 'Query di ricerca obbligatoria' });
     }
     
-    // Validate room access
-    if (!await canAccessRoom(req.user._id, message.room, message.roomType)) {
-      return res.status(403).json({ error: 'Non hai accesso a questa room' });
-    }
-    
-    await message.removeReaction(req.user._id);
-    
-    // Emit to Socket.io
-    const io = req.app.get('io');
-    if (io) {
-      io.to(message.room).emit('reactionRemoved', {
-        messageId: message._id,
-        reactions: message.reactions
-      });
-    }
+    const messages = await Message.searchMessages(room, query, limit);
     
     res.json({
-      message: 'Reazione rimossa con successo',
-      reactions: message.reactions
+      messages: messages
     });
-    
   } catch (error) {
-    console.error('Remove reaction error:', error);
-    res.status(500).json({ error: 'Errore nella rimozione della reazione' });
+    console.error('Search messages error:', error);
+    res.status(500).json({ error: 'Errore nella ricerca dei messaggi' });
   }
 });
-
-// Get user's chat rooms
-router.get('/rooms', auth, async (req, res) => {
-  try {
-    const rooms = [];
-    
-    // Global room (always accessible)
-    rooms.push({
-      id: 'global',
-      name: 'Chat Globale',
-      type: 'global',
-      unreadCount: await getUnreadCount(req.user._id, 'global')
-    });
-    
-    // Team rooms
-    const userTeams = await Team.find({ 
-      'members.user': req.user._id,
-      isActive: true 
-    }).select('name _id');
-    
-    for (const team of userTeams) {
-      const roomId = `team-${team._id}`;
-      rooms.push({
-        id: roomId,
-        name: `Team: ${team.name}`,
-        type: 'team',
-        teamId: team._id,
-        unreadCount: await getUnreadCount(req.user._id, roomId)
-      });
-    }
-    
-    // Private rooms (would need additional logic for user-to-user chats)
-    // This is a placeholder for private chat functionality
-    
-    res.json({ rooms: rooms });
-    
-  } catch (error) {
-    console.error('Get user rooms error:', error);
-    res.status(500).json({ error: 'Errore nel caricamento delle room' });
-  }
-});
-
-// Helper functions
-function getRoomType(roomId) {
-  if (roomId === 'global') return 'global';
-  if (roomId.startsWith('team-')) return 'team';
-  if (roomId.startsWith('private-')) return 'private';
-  return null;
-}
-
-async function canAccessRoom(userId, roomId, roomType) {
-  switch (roomType) {
-    case 'global':
-      return true; // Everyone can access global chat
-    
-    case 'team':
-      const teamId = roomId.replace('team-', '');
-      const team = await Team.findById(teamId);
-      return team && team.isMember(userId);
-    
-    case 'private':
-      // For private chats, check if user is part of the chat
-      // This would need additional implementation
-      return true; // Placeholder
-    
-    default:
-      return false;
-  }
-}
-
-async function getUnreadCount(userId, roomId) {
-  try {
-    const count = await Message.countDocuments({
-      room: roomId,
-      isDeleted: false,
-      sender: { $ne: userId },
-      'readBy.user': { $ne: userId }
-    });
-    
-    return count;
-  } catch (error) {
-    return 0;
-  }
-}
 
 module.exports = router;
