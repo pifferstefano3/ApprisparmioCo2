@@ -15,11 +15,10 @@ router.get('/', async (req, res) => {
     if (type === 'co2Saved') sortField = 'co2Saved';
     if (type === 'activities') sortField = 'createdAt';
 
-    const users = await User.find({ isActive: true })
+    const users = await User.find({})
       .sort({ [sortField]: -1 })
       .limit(limit)
-      .select('name avatar points co2Saved honorTitle trophies')
-      .limit(limit);
+      .select('name avatar points co2Saved honorTitle trophies');
 
     // Add rankings
     const leaderboard = users.map((user, index) => ({
@@ -53,9 +52,8 @@ router.get('/user', async (req, res) => {
       return res.status(404).json({ error: 'Utente non trovato' });
     }
 
-    // Get user's ranking
+    // Get user's ranking (all users)
     const rank = await User.countDocuments({ 
-      isActive: true, 
       points: { $gt: user.points } 
     }) + 1;
 

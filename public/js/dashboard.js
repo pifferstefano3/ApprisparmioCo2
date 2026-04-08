@@ -21,10 +21,10 @@ async function init() {
 
 /* ─── Render User ────────────────────────────────────────────────────────────── */
 function renderUser(user) {
-  document.getElementById('headerUsername').textContent = user.username;
+  document.getElementById('headerUsername').textContent = user.username || user.name;
   document.getElementById('headerPoints').textContent   = user.points;
   document.getElementById('statCO2').textContent        = formatCO2(user.co2Saved);
-  document.getElementById('statKm').textContent         = formatKm(user.kmSustainable);
+  document.getElementById('statKm').textContent         = formatKm(user.kmSustainable || 0);
   document.getElementById('statPoints').textContent     = user.points;
 
   const streak = user.streak?.current || 0;
@@ -33,9 +33,19 @@ function renderUser(user) {
   document.getElementById('streakMax').textContent  = streakMax;
   document.getElementById('streakValue').textContent = streak;
 
-  // Avatar emoji in base alla skin
-  const skinEmoji = { default:'🌿', skin_forest:'🌲', skin_ocean:'🌊', skin_mountain:'🏔️', skin_galaxy:'🌌', skin_aurora:'🌠' };
-  document.getElementById('headerAvatar').textContent = skinEmoji[user.avatarSkin] || '🌿';
+  // Avatar - show profile image if available, otherwise emoji
+  const headerAvatar = document.getElementById('headerAvatar');
+  if (user.avatar) {
+    headerAvatar.innerHTML = `<img src="${user.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    headerAvatar.style.padding = '0';
+    headerAvatar.style.background = 'transparent';
+  } else {
+    // Avatar emoji in base alla skin
+    const skinEmoji = { default:'🌿', skin_forest:'🌲', skin_ocean:'🌊', skin_mountain:'🏔️', skin_galaxy:'🌌', skin_aurora:'🌠' };
+    headerAvatar.textContent = skinEmoji[user.avatarSkin] || '🌿';
+    headerAvatar.style.padding = '';
+    headerAvatar.style.background = '';
+  }
 
   // Trofei
   const trophyGrid = document.getElementById('trophyGrid');
@@ -44,6 +54,13 @@ function renderUser(user) {
       const info = TROPHY_LABELS[t] || { label: t, emoji: '🏆' };
       return `<div class="trophy-item">${info.emoji} ${info.label}</div>`;
     }).join('');
+  } else {
+    // Show motivational message if no trophies
+    trophyGrid.innerHTML = `<div style="text-align:center; padding:20px; color:rgba(255,255,255,0.6); font-size:0.85rem;">
+      <div style="font-size:2rem; margin-bottom:8px;">🌱</div>
+      <div>Completa attività ecologiche per sbloccare i tuoi primi trofei!</div>
+      <div style="margin-top:8px; font-size:0.75rem; color:#4ade80;">Inizia da /map.html</div>
+    </div>`;
   }
 }
 

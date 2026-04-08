@@ -8,6 +8,10 @@
   <link rel="stylesheet" href="/css/animations.css">
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    #map { height: 60vh; min-height: 400px; border-radius: 16px; }
+    .back-btn { position: absolute; top: 20px; left: 20px; z-index: 1000; }
+  </style>
 </head>
 <body>
   <div class="animated-bg"></div>
@@ -16,6 +20,8 @@
     <div class="leaf"></div><div class="leaf"></div>
     <div class="co2-particle"></div><div class="co2-particle"></div><div class="co2-particle"></div>
   </div>
+  
+  <button class="back-btn" onclick="window.location.href='/dashboard.html'">← Indietro</button>
 
   <!-- UI Bottom Panel -->
   <div class="map-ui-overlay">
@@ -134,6 +140,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="/js/api.js"></script>
+  <script src="/js/navigation.js"></script>
   <script src="/js/map.js"></script>
 </body>
 </html>
