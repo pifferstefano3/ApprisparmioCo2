@@ -13,11 +13,11 @@ const { cleanupOnError } = require('./middleware/upload');
 
 const app = express();
 
-// ─── Crea cartella uploads se non esiste ─────────────────────────────────────
+// Crea cartella uploads se non esiste
 const UPLOADS_DIR = path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-// ─── Security & Middleware ────────────────────────────────────────────────────
+// Security & Middleware
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -52,14 +52,13 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// ─── Static Files ─────────────────────────────────────────────────────────────
 // Static Files Configuration
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
 app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
 
-// ─── Routes ───────────────────────────────────────────────────────────────────
+// Routes
 app.use('/api/auth',        require('./routes/auth'));
 app.use('/api/activities',  require('./routes/activities'));
 app.use('/api/ai',          require('./routes/ai'));
@@ -78,7 +77,7 @@ app.get('/map', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'map-basic.html'));
 });
 
-// ─── SPA Catch-all ────────────────────────────────────────────────────────────
+// SPA Catch-all
 app.get('*', (req, res) => {
   if (!req.path.startsWith('/api')) {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -87,7 +86,7 @@ app.get('*', (req, res) => {
   }
 });
 
-// ─── MongoDB Connection ──────────────────────────────────────
+// MongoDB Connection
 let isConnected = false;
 
 async function connectDB() {
@@ -107,7 +106,7 @@ async function connectDB() {
 
 mongoose.connection.on('connected',    () => { isConnected = true;  console.log('[MongoDB] Connesso a Atlas'); });
 mongoose.connection.on('error',    err => { isConnected = false; console.error('[MongoDB] Errore:', err.message); });
-mongoose.connection.on('disconnected', () => { isConnected = false; console.warn('[MongoDB] Disconnesso — riconnessione...'); setTimeout(connectDB, 5000); });
+mongoose.connection.on('disconnected', () => { isConnected = false; console.warn('[MongoDB] Disconnesso  riconnessione...'); setTimeout(connectDB, 5000); });
 
 process.on('SIGINT', async () => {
   await mongoose.connection.close();
@@ -115,7 +114,7 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-// ─── Start Server ──────────────────────────────────────────────────────────────
+// Start Server
 const PORT = process.env.PORT || 3000;
 connectDB().then(() => {
   // Create HTTP server

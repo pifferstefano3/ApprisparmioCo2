@@ -48,176 +48,193 @@ function setupEventListeners() {
 
 async function loadUserTeams() {
   try {
-    const response = await fetch('/api/teams/my');
+    const response = await fetch('/api/teams/my-teams');
     const data = await response.json();
     
-    if (response.ok && data.teams) {
-      teams = data.teams;
-      renderTeams();
+    if (response.ok) {
+      teams = data.teams || [];
+      renderUserTeams();
     } else {
-      throw new Error(data.error || 'Errore caricamento team');
+      console.error('Error loading teams:', data.error);
+      renderEmptyTeams();
     }
   } catch (error) {
-    console.error('Error loading teams:', error);
-    document.getElementById('myTeamsContainer').innerHTML = `
-      <div style="text-align:center; padding:40px 0; color:var(--text-muted);">
-        Errore nel caricamento dei team
-      </div>
-    `;
+    console.error('Load teams error:', error);
+    renderEmptyTeams();
   }
 }
 
-function renderTeams() {
+function renderUserTeams() {
   const container = document.getElementById('myTeamsContainer');
   
-  if (teams.length === 0) {
-    container.innerHTML = `
-      <div style="text-align:center; padding:40px 0; color:var(--text-muted);">
-        Non hai ancora team. Crea il tuo primo team!
-      </div>
-    `;
+  if (!teams || teams.length === 0) {
+    renderEmptyTeams();
     return;
   }
   
-  container.innerHTML = '';
-  
-  teams.forEach(team => {
-    const teamElement = createTeamElement(team);
-    container.appendChild(teamElement);
-  });
+  container.innerHTML = teams.map(team => `
+    <div class="team-card glass-card" style="padding:16px; cursor:pointer;" onclick="viewTeamDetails('${team._id}')">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <h4 style="color:white; margin:0;">${escapeHtml(team.name)}</h4>
+        <span style="background:#4ade80; color:white; padding:4px 8px; border-radius:12px; font-size:0.7rem; font-weight:bold;">${team.code}</span>
+      </div>
+      <div style="color:var(--text-muted); font-size:0.8rem; margin-bottom:8px;">
+        ${team.description ? escapeHtml(team.description) : 'Nessuna descrizione'}
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="color:#4ade80; font-size:0.8rem;">${team.members ? team.members.length : 0} membri</span>
+        <span style="color:var(--text-muted); font-size:0.7rem;">Creato: ${formatDate(team.createdAt)}</span>
+      </div>
+    </div>
+  `).join('');
 }
 
-function createTeamElement(team) {
-  const div = document.createElement('div');
-  div.className = 'glass-card';
-  div.style.cssText = 'padding:16px; cursor:pointer; transition:transform 0.2s ease;';
-  
-  const membersHtml = team.members.slice(0, 3).map(member => 
-    `<div class="member-avatar">${member.user.name.charAt(0).toUpperCase()}</div>`
-  ).join('');
-  
-  const memberCount = team.members.length;
-  const isLeader = team.getUserRole ? team.getUserRole(getCurrentUserId()) === 'leader' : team.creator._id === getCurrentUserId();
-  
-  div.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-      <div>
-        <div style="font-weight:bold; color:white; font-size:1.1rem; margin-bottom:4px;">${escapeHtml(team.name)}</div>
-        <div style="color:var(--text-muted); font-size:0.8rem;">Codice: <span style="font-family:monospace; background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px;">${team.code}</span></div>
-      </div>
-      <div style="display:flex; align-items:center; gap:8px;">
-        ${isLeader ? '<span style="background:gold; color:#333; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:bold;">LEADER</span>' : ''}
-        <span style="background:rgba(46,204,113,0.2); color:#4ade80; padding:2px 8px; border-radius:12px; font-size:0.7rem;">${memberCount} membri</span>
-      </div>
-    </div>
-    
-    ${team.description ? `<div style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:12px;">${escapeHtml(team.description)}</div>` : ''}
-    
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <div style="display:flex; gap:4px; align-items:center;">
-        ${membersHtml}
-        ${memberCount > 3 ? `<div style="color:var(--text-muted); font-size:0.8rem;">+${memberCount - 3}</div>` : ''}
-      </div>
-      <div style="display:flex; gap:8px;">
-        <button onclick="viewTeamDetails('${team._id}')" class="btn btn-secondary btn-sm">Dettagli</button>
-        <button onclick="openTeamChat('${team._id}')" class="btn btn-primary btn-sm">Chat</button>
-      </div>
+function renderEmptyTeams() {
+  const container = document.getElementById('myTeamsContainer');
+  container.innerHTML = `
+    <div style="text-align:center; padding:40px 0; color:var(--text-muted);">
+      <div style="font-size:2rem; margin-bottom:12px;">?</div>
+      <div style="font-weight:600; margin-bottom:8px;">Nessun team</div>
+      <div style="font-size:0.85rem; margin-bottom:16px;">Crea il tuo primo team o unisciti a uno esistente!</div>
+      <button class="btn btn-primary btn-sm" style="width:auto;" onclick="openCreateTeamModal()">+ Crea Team</button>
     </div>
   `;
-  
-  div.onclick = function(e) {
-    if (!e.target.closest('button')) {
-      viewTeamDetails(team._id);
-    }
-  };
-  
-  return div;
 }
 
 function openCreateTeamModal() {
-  document.getElementById('createTeamModal').style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-  
-  // Reset form
-  document.getElementById('teamName').value = '';
-  document.getElementById('teamDescription').value = '';
-  document.getElementById('teamMaxMembers').value = '20';
+  const modal = document.getElementById('createTeamModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    // Focus on name input
+    setTimeout(() => {
+      document.getElementById('teamName')?.focus();
+    }, 100);
+  }
 }
 
 function closeCreateTeamModal() {
-  document.getElementById('createTeamModal').style.display = 'none';
-  document.body.style.overflow = '';
+  const modal = document.getElementById('createTeamModal');
+  if (modal) {
+    modal.style.display = 'none';
+    // Reset form
+    const form = document.getElementById('createTeamForm');
+    if (form) {
+      form.reset();
+    }
+  }
 }
 
 async function createTeam() {
-  const name = document.getElementById('teamName').value.trim();
-  const description = document.getElementById('teamDescription').value.trim();
-  const maxMembers = parseInt(document.getElementById('teamMaxMembers').value);
+  const nameInput = document.getElementById('teamName');
+  const descriptionInput = document.getElementById('teamDescription');
+  
+  const name = nameInput?.value?.trim();
+  const description = descriptionInput?.value?.trim();
   
   if (!name) {
     showToast('Il nome del team è obbligatorio', 'error');
     return;
   }
   
-  const teamData = {
-    name: name,
-    description: description,
-    maxMembers: maxMembers
-  };
+  if (name.length < 3) {
+    showToast('Il nome deve essere almeno 3 caratteri', 'error');
+    return;
+  }
+  
+  const submitBtn = document.querySelector('#createTeamForm button[type="submit"]');
+  const originalText = submitBtn.textContent;
   
   try {
+    // Show loading state
+    submitBtn.textContent = 'Creazione...';
+    submitBtn.disabled = true;
+    
     const response = await fetch('/api/teams/create', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(teamData)
+      body: JSON.stringify({
+        name,
+        description
+      })
     });
     
     const data = await response.json();
     
-    if (response.ok && data.team) {
-      showToast('Team creato con successo!', 'success');
+    if (response.ok) {
+      showToast(`Team "${name}" creato con successo! Codice: ${data.team.code}`, 'success');
       closeCreateTeamModal();
-      loadUserTeams();
+      
+      // Reload teams list
+      await loadUserTeams();
+      
+      // Show team details
+      viewTeamDetails(data.team._id);
     } else {
-      throw new Error(data.error || 'Errore creazione team');
+      showToast(data.error || 'Errore nella creazione del team', 'error');
     }
   } catch (error) {
     console.error('Create team error:', error);
-    showToast('Errore nella creazione del team', 'error');
+    showToast('Errore di connessione', 'error');
+  } finally {
+    // Reset button state
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
   }
 }
 
 async function joinTeam() {
-  const code = document.getElementById('joinCode').value.trim();
+  const codeInput = document.getElementById('joinCode');
+  const code = codeInput?.value?.trim().toUpperCase();
   
-  if (!code || code.length !== 8) {
-    showToast('Inserisci un codice team valido (8 caratteri)', 'error');
+  if (!code) {
+    showToast('Il codice team è obbligatorio', 'error');
     return;
   }
   
+  if (code.length !== 8) {
+    showToast('Il codice team deve essere di 8 caratteri', 'error');
+    return;
+  }
+  
+  const joinBtn = document.getElementById('joinTeamBtn');
+  const originalText = joinBtn.textContent;
+  
   try {
+    // Show loading state
+    joinBtn.textContent = 'Unione...';
+    joinBtn.disabled = true;
+    
     const response = await fetch('/api/teams/join', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ code: code })
+      body: JSON.stringify({ code })
     });
     
     const data = await response.json();
     
-    if (response.ok && data.team) {
-      showToast('Ti sei unito al team con successo!', 'success');
-      document.getElementById('joinCode').value = '';
-      loadUserTeams();
+    if (response.ok) {
+      showToast(`Ti sei unito al team "${data.team.name}"!`, 'success');
+      codeInput.value = '';
+      
+      // Reload teams list
+      await loadUserTeams();
+      
+      // Show team details
+      viewTeamDetails(data.team._id);
     } else {
-      throw new Error(data.error || 'Errore unione al team');
+      showToast(data.error || 'Errore nell\'unione al team', 'error');
     }
   } catch (error) {
     console.error('Join team error:', error);
-    showToast(error.message || 'Errore nell\'unione al team', 'error');
+    showToast('Errore di connessione', 'error');
+  } finally {
+    // Reset button state
+    joinBtn.textContent = originalText;
+    joinBtn.disabled = false;
   }
 }
 
@@ -226,328 +243,132 @@ async function viewTeamDetails(teamId) {
     const response = await fetch(`/api/teams/${teamId}`);
     const data = await response.json();
     
-    if (response.ok && data.team) {
+    if (response.ok) {
       currentTeam = data.team;
       renderTeamDetails();
     } else {
-      throw new Error(data.error || 'Errore caricamento dettagli team');
+      showToast(data.error || 'Errore nel caricamento dei dettagli', 'error');
     }
   } catch (error) {
-    console.error('View team details error:', error);
-    showToast('Errore nel caricamento dei dettagli', 'error');
+    console.error('Load team details error:', error);
+    showToast('Errore di connessione', 'error');
   }
 }
 
 function renderTeamDetails() {
+  if (!currentTeam) return;
+  
   const container = document.getElementById('teamDetailsContainer');
-  const team = currentTeam;
-  
-  if (!team) return;
-  
-  const membersHtml = team.members.map(member => `
-    <div style="display:flex; align-items:center; gap:8px; padding:8px; background:rgba(255,255,255,0.05); border-radius:8px;">
-      <div class="member-avatar">${member.user.name.charAt(0).toUpperCase()}</div>
-      <div style="flex:1;">
-        <div style="color:white; font-size:0.9rem;">${escapeHtml(member.user.name)}</div>
-        <div style="color:var(--text-muted); font-size:0.7rem;">${getRoleLabel(member.role)} - ${new Date(member.joinedAt).toLocaleDateString('it-IT')}</div>
-      </div>
-      ${member.role === 'leader' ? '<span style="background:gold; color:#333; padding:2px 8px; border-radius:12px; font-size:0.6rem; font-weight:bold;">LEADER</span>' : ''}
-    </div>
-  `).join('');
+  container.style.display = 'block';
   
   container.innerHTML = `
-    <div class="glass-card" style="margin-bottom:16px;">
+    <div class="glass-card" style="padding:20px; margin-bottom:16px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <h3 style="color:white; font-size:1rem;">${escapeHtml(team.name)}</h3>
-        <button onclick="closeTeamDetails()" class="btn btn-ghost btn-sm">Chiudi</button>
+        <h3 style="color:white; margin:0;">${escapeHtml(currentTeam.name)}</h3>
+        <button onclick="closeTeamDetails()" class="btn btn-ghost btn-sm" style="width:auto; padding:4px 8px;">×</button>
       </div>
       
-      <div style="margin-bottom:16px;">
+      <div style="background:rgba(74,222,128,0.1); border:1px solid rgba(74,222,128,0.3); border-radius:8px; padding:12px; margin-bottom:16px; text-align:center;">
         <div style="color:var(--text-muted); font-size:0.8rem; margin-bottom:4px;">Codice Team</div>
-        <div style="font-family:monospace; background:rgba(255,255,255,0.1); padding:8px 12px; border-radius:8px; color:#4ade80; font-weight:bold;">${team.code}</div>
+        <div style="color:#4ade80; font-size:1.2rem; font-weight:bold; letter-spacing:2px;">${currentTeam.code}</div>
       </div>
       
-      ${team.description ? `
+      ${currentTeam.description ? `
         <div style="margin-bottom:16px;">
-          <div style="color:var(--text-muted); font-size:0.8rem; margin-bottom:4px;">Descrizione</div>
-          <div style="color:white;">${escapeHtml(team.description)}</div>
+          <h4 style="color:white; font-size:0.9rem; margin-bottom:8px;">Descrizione</h4>
+          <p style="color:var(--text-muted); font-size:0.85rem; margin:0;">${escapeHtml(currentTeam.description)}</p>
         </div>
       ` : ''}
       
       <div style="margin-bottom:16px;">
-        <div style="color:var(--text-muted); font-size:0.8rem; margin-bottom:8px;">Membri (${team.members.length}/${team.maxMembers})</div>
+        <h4 style="color:white; font-size:0.9rem; margin-bottom:12px;">Membri (${currentTeam.members ? currentTeam.members.length : 0})</h4>
         <div style="display:flex; flex-direction:column; gap:8px;">
-          ${membersHtml}
+          ${renderTeamMembers()}
         </div>
       </div>
       
       <div style="display:flex; gap:8px;">
-        <button onclick="openTeamChat('${team._id}')" class="btn btn-primary">Apri Chat</button>
-        <button onclick="viewTeamGoals('${team._id}')" class="btn btn-secondary">Obiettivi</button>
+        <button onclick="openTeamChat()" class="btn btn-primary" style="flex:1;">Chat Team</button>
+        <button onclick="leaveTeam()" class="btn btn-secondary" style="width:auto;">Lascia Team</button>
       </div>
     </div>
   `;
+}
+
+function renderTeamMembers() {
+  if (!currentTeam.members || currentTeam.members.length === 0) {
+    return '<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:20px;">Nessun membro</div>';
+  }
   
-  container.style.display = 'block';
-  
-  // Scroll to team details
-  container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return currentTeam.members.map(member => `
+    <div style="display:flex; align-items:center; gap:12px; padding:8px; background:rgba(255,255,255,0.05); border-radius:8px;">
+      <div style="width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#2e8b57,#4ade80); display:flex; align-items:center; justify-content:center; font-size:0.9rem;">
+        ${member.user?.name ? member.user.name.charAt(0).toUpperCase() : '?'}
+      </div>
+      <div style="flex:1;">
+        <div style="color:white; font-weight:600;">${escapeHtml(member.user?.name || 'Utente')}</div>
+        <div style="color:var(--text-muted); font-size:0.7rem;">Unito: ${formatDate(member.joinedAt)}</div>
+      </div>
+      ${member.user?._id === currentTeam.creator?._id ? '<span style="background:#fbbf24; color:white; padding:2px 6px; border-radius:4px; font-size:0.6rem;">CREATOR</span>' : ''}
+    </div>
+  `).join('');
 }
 
 function closeTeamDetails() {
-  document.getElementById('teamDetailsContainer').style.display = 'none';
+  const container = document.getElementById('teamDetailsContainer');
+  container.style.display = 'none';
   currentTeam = null;
 }
 
-function openTeamChat(teamId) {
-  // Redirect to chat page with team parameter
-  window.location.href = `/chat.html?team=${teamId}`;
-}
-
-function viewTeamGoals(teamId) {
-  // Redirect to goals page with team parameter
-  window.location.href = `/goals.html?team=${teamId}`;
-}
-
-function openTeamChatInline(teamId) {
-  // Open inline chat modal
-  const team = teams.find(t => t._id === teamId);
-  if (!team) return;
+async function leaveTeam() {
+  if (!currentTeam) return;
   
-  // Create chat modal
-  const chatModal = document.createElement('div');
-  chatModal.id = 'teamChatModal';
-  chatModal.style.cssText = `
-    position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.6);
-    backdrop-filter:blur(8px); align-items:center; justify-content:center;
-  `;
-  
-  chatModal.innerHTML = `
-    <div class="glass-card" style="width:90%; max-width:600px; height:80vh; border-radius:16px; padding:16px; display:flex; flex-direction:column;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <h3 style="color:white; margin:0;">Chat Team: ${escapeHtml(team.name)}</h3>
-        <button onclick="closeTeamChatModal()" class="btn btn-ghost btn-sm" style="width:auto; padding:6px 12px;">×</button>
-      </div>
-      
-      <div id="teamChatMessages" style="flex:1; overflow-y:auto; padding:8px; background:rgba(255,255,255,0.05); border-radius:8px; margin-bottom:12px;">
-        <div style="text-align:center; padding:20px 0; color:var(--text-muted);">
-          <div class="spinner" style="margin:0 auto 8px;"></div>
-          Caricamento chat...
-        </div>
-      </div>
-      
-      <div style="display:flex; gap:8px;">
-        <input type="text" id="teamChatInput" class="form-input" placeholder="Scrivi un messaggio..." style="flex:1;">
-        <button onclick="sendTeamMessage('${teamId}')" class="btn btn-primary">Invia</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(chatModal);
-  
-  // Initialize team chat
-  initializeTeamChat(teamId);
-  
-  // Setup input events
-  const input = document.getElementById('teamChatInput');
-  input.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      sendTeamMessage(teamId);
-    }
-  });
-}
-
-function closeTeamChatModal() {
-  const modal = document.getElementById('teamChatModal');
-  if (modal) {
-    modal.remove();
-  }
-}
-
-function initializeTeamChat(teamId) {
-  // Connect to Socket.io team room
-  if (typeof socket !== 'undefined' && socket) {
-    socket.emit('joinRoom', `team-${teamId}`);
-    loadTeamMessages(teamId);
-  } else {
-    // Load messages via API if socket not available
-    loadTeamMessagesAPI(teamId);
-  }
-}
-
-async function loadTeamMessages(teamId) {
-  try {
-    const response = await fetch(`/api/messages/room/team-${teamId}`);
-    const data = await response.json();
-    
-    if (response.ok && data.messages) {
-      renderTeamMessages(data.messages);
-    }
-  } catch (error) {
-    console.error('Error loading team messages:', error);
-    document.getElementById('teamChatMessages').innerHTML = `
-      <div style="text-align:center; padding:20px 0; color:var(--text-muted);">
-        Errore nel caricamento dei messaggi
-      </div>
-    `;
-  }
-}
-
-async function loadTeamMessagesAPI(teamId) {
-  try {
-    const response = await fetch(`/api/messages/room/team-${teamId}`);
-    const data = await response.json();
-    
-    if (response.ok && data.messages) {
-      renderTeamMessages(data.messages);
-    }
-  } catch (error) {
-    console.error('Error loading team messages:', error);
-  }
-}
-
-function renderTeamMessages(messages) {
-  const container = document.getElementById('teamChatMessages');
-  
-  if (messages.length === 0) {
-    container.innerHTML = `
-      <div style="text-align:center; padding:20px 0; color:var(--text-muted);">
-        Nessun messaggio in questa chat
-      </div>
-    `;
+  if (!confirm(`Sei sicuro di voler lasciare il team "${currentTeam.name}"?`)) {
     return;
   }
   
-  container.innerHTML = '';
-  
-  messages.forEach(message => {
-    const messageElement = createTeamMessageElement(message);
-    container.appendChild(messageElement);
-  });
-  
-  // Scroll to bottom
-  container.scrollTop = container.scrollHeight;
-}
-
-function createTeamMessageElement(message) {
-  const div = document.createElement('div');
-  const isOwn = message.sender._id === getCurrentUserId();
-  
-  div.style.cssText = `
-    display:flex; flex-direction:${isOwn ? 'row-reverse' : 'row'};
-    gap:8px; margin-bottom:12px; align-items:flex-start;
-  `;
-  
-  const avatarHtml = `<div style="width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg, #2ecc71, #27ae60); border:2px solid white; display:flex; align-items:center; justify-content:center; font-size:0.8rem; color:white; font-weight:bold;">${message.sender.name.charAt(0).toUpperCase()}</div>`;
-  
-  const contentHtml = `
-    <div style="display:flex; flex-direction:column; max-width:70%; ${isOwn ? 'align-items:flex-end;' : ''}">
-      <div style="display:flex; align-items:center; margin-bottom:4px; ${isOwn ? 'justify-content:flex-end;' : ''}">
-        <span style="color:white; font-weight:600; font-size:0.8rem;">${escapeHtml(message.sender.name)}</span>
-        <span style="color:var(--text-muted); font-size:0.7rem; margin-left:8px;">${formatTime(message.createdAt)}</span>
-      </div>
-      <div style="padding:8px 12px; border-radius:16px; word-wrap:break-word; color:white; ${isOwn ? 'background:linear-gradient(135deg, #2ecc71, #27ae60);' : 'background:rgba(255,255,255,0.1);'}">
-        ${message.type === 'text' ? escapeHtml(message.content) : createFileContent(message)}
-      </div>
-    </div>
-  `;
-  
-  div.innerHTML = isOwn ? contentHtml + avatarHtml : avatarHtml + contentHtml;
-  
-  return div;
-}
-
-async function sendTeamMessage(teamId) {
-  const input = document.getElementById('teamChatInput');
-  const content = input.value.trim();
-  
-  if (!content) return;
-  
-  const messageData = {
-    content: content,
-    type: 'text',
-    room: `team-${teamId}`
-  };
-  
   try {
-    const response = await fetch('/api/messages/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(messageData)
+    const response = await fetch(`/api/teams/${currentTeam._id}/leave`, {
+      method: 'POST'
     });
     
     const data = await response.json();
     
     if (response.ok) {
-      input.value = '';
-      // Reload messages or handle via Socket.io
-      loadTeamMessages(teamId);
+      showToast(`Hai lasciato il team "${currentTeam.name}"`, 'success');
+      closeTeamDetails();
+      await loadUserTeams();
     } else {
-      showToast(data.error || 'Errore nell\'invio del messaggio', 'error');
+      showToast(data.error || 'Errore nel lasciare il team', 'error');
     }
   } catch (error) {
-    console.error('Send team message error:', error);
-    showToast('Errore nell\'invio del messaggio', 'error');
+    console.error('Leave team error:', error);
+    showToast('Errore di connessione', 'error');
   }
 }
 
-// Helper functions
-function getCurrentUserId() {
-  // This should get the current user ID from session or local storage
-  return localStorage.getItem('userId') || null;
+function openTeamChat() {
+  if (!currentTeam) return;
+  
+  // Open team chat in a modal or navigate to chat page
+  showToast(`Chat team "${currentTeam.name}" coming soon!`, 'info');
 }
 
-function formatTime(dateString) {
+function formatDate(dateString) {
   const date = new Date(dateString);
-  return date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-}
-
-function createFileContent(message) {
-  if (!message.file) return '';
+  const now = new Date();
+  const diff = now - date;
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   
-  const file = message.file;
-  
-  if (file.mimetype.startsWith('image/')) {
-    return `<img src="${file.url}" alt="${file.originalName}" style="max-width:200px; max-height:200px; border-radius:8px;">`;
-  } else if (file.mimetype.startsWith('video/')) {
-    return `<video src="${file.url}" controls style="max-width:200px; max-height:200px; border-radius:8px;"></video>`;
+  if (days === 0) {
+    return 'Oggi';
+  } else if (days === 1) {
+    return 'Ieri';
+  } else if (days < 7) {
+    return `${days} giorni fa`;
   } else {
-    return `
-      <div style="display:flex; align-items:center; gap:8px; padding:8px; background:rgba(255,255,255,0.1); border-radius:8px;">
-        <span style="font-size:1.2rem;">Team</span>
-        <div>
-          <div style="color:white; font-size:0.8rem;">${escapeHtml(file.originalName)}</div>
-          <div style="color:var(--text-muted); font-size:0.7rem;">${formatFileSize(file.size)}</div>
-        </div>
-      </div>
-    `;
+    return date.toLocaleDateString('it-IT');
   }
-}
-
-function formatFileSize(bytes) {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-// Helper functions
-function getCurrentUserId() {
-  // This should get the current user ID from session or local storage
-  // For now, return a placeholder - this would need to be implemented
-  return localStorage.getItem('userId') || null;
-}
-
-function getRoleLabel(role) {
-  const labels = {
-    leader: 'Leader',
-    admin: 'Admin',
-    member: 'Membro'
-  };
-  return labels[role] || role;
 }
 
 function escapeHtml(text) {
@@ -558,30 +379,13 @@ function escapeHtml(text) {
 
 function showToast(message, type = 'info') {
   const toast = document.getElementById('toast');
-  toast.textContent = message;
-  toast.className = `toast ${type}`;
-  toast.style.display = 'block';
-  
-  setTimeout(() => {
-    toast.style.display = 'none';
-  }, 3000);
-}
-
-// CSS for member avatars
-const style = document.createElement('style');
-style.textContent = `
-  .member-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #2ecc71, #27ae60);
-    border: 2px solid white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
-    color: white;
-    font-weight: bold;
+  if (toast) {
+    toast.textContent = message;
+    toast.className = `toast ${type}`;
+    toast.style.display = 'block';
+    
+    setTimeout(() => {
+      toast.style.display = 'none';
+    }, 3000);
   }
-`;
-document.head.appendChild(style);
+}

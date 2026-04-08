@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   // Load initial AI message
-  addAIMessage('Ciao! Sono l\'assistente AI di VERDENT 🌿 Chiedimi qualsiasi cosa su come ridurre la tua impronta di CO2, trasporti ecologici, stile di vita sostenibile e molto altro. Ogni domanda eco-friendly ti guadagna stelle bonus!');
+  addAIMessage('Ciao! Sono l\'assistente AI di VERDENT ? Chiedimi qualsiasi cosa su come ridurre la tua impronta di CO2, trasporti ecologici, stile di vita sostenibile e molto altro. Ogni domanda eco-friendly ti guadagna stelle bonus!');
   
   // Setup event listeners
   sendBtn.addEventListener('click', sendAIMessage);
@@ -84,7 +84,7 @@ function addUserMessage(message) {
   messageDiv.className = 'chat-bubble user animate-fade-in-up';
   messageDiv.innerHTML = `
     <div class="bubble-content">${escapeHtml(message)}</div>
-    <div class="bubble-time">Tu · ${formatTime(new Date())}</div>
+    <div class="bubble-time">Tu ? ${formatTime(new Date())}</div>
   `;
   chatMessages.appendChild(messageDiv);
   chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -96,7 +96,7 @@ function addAIMessage(message) {
   messageDiv.className = 'chat-bubble ai animate-fade-in-up';
   messageDiv.innerHTML = `
     <div class="bubble-content">${escapeHtml(message)}</div>
-    <div class="bubble-time">AI · ${formatTime(new Date())}</div>
+    <div class="bubble-time">AI ? ${formatTime(new Date())}</div>
   `;
   chatMessages.appendChild(messageDiv);
   chatMessages.scrollTop = chatMessages.scrollHeight;

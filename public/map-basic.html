@@ -59,11 +59,11 @@
       <div class="glass-card" style="padding:12px;">
         <div style="color:white; font-weight:600; margin-bottom:8px;">Mezzo di Trasporto</div>
         <div style="display:flex; gap:8px;">
-          <button onclick="selectTransport('walk')" class="transport-btn active" data-transport="walk">🚶</button>
-          <button onclick="selectTransport('bike')" class="transport-btn" data-transport="bike">🚴</button>
-          <button onclick="selectTransport('bus')" class="transport-btn" data-transport="bus">🚌</button>
-          <button onclick="selectTransport('train')" class="transport-btn" data-transport="train">🚆</button>
-          <button onclick="selectTransport('car')" class="transport-btn" data-transport="car">🚗</button>
+          <button onclick="selectTransport('walk')" class="transport-btn active" data-transport="walk">?</button>
+          <button onclick="selectTransport('bike')" class="transport-btn" data-transport="bike">?</button>
+          <button onclick="selectTransport('bus')" class="transport-btn" data-transport="bus">?</button>
+          <button onclick="selectTransport('train')" class="transport-btn" data-transport="train">?</button>
+          <button onclick="selectTransport('car')" class="transport-btn" data-transport="car">?</button>
         </div>
       </div>
     </div>
@@ -216,7 +216,6 @@
               
               currentPosition = newPosition;
               addRouteMarker(newPosition);
-            }
             },
             (error) => {
               console.error('Tracking error:', error);

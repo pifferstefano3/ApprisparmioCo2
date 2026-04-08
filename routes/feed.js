@@ -51,70 +51,70 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/feed/create - Create new post with optional media
+// POST /api/feed - Create new post with media upload
 router.post('/create', uploadSingle('media', 'feed'), async (req, res) => {
   try {
     const { title, description } = req.body;
     const userId = req.userId;
     
+    // Validate required fields
     if (!title || !title.trim()) {
       return res.status(400).json({ error: 'Il titolo è obbligatorio' });
     }
     
-    // Get user info
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'Utente non trovato' });
-    }
-    
-    // Create post
+    // Create post object
     const postData = {
-      userId: userId,
-      username: user.name,
-      profilePic: user.avatar || '',
       title: title.trim(),
-      description: description ? description.trim() : ''
+      description: description ? description.trim() : '',
+      userId,
+      createdAt: new Date()
     };
     
     // Add media if uploaded
     if (req.file) {
       postData.mediaUrl = `/uploads/feed/${req.file.filename}`;
-      postData.mediaType = req.file.mimetype.startsWith('image/') ? 'image' : 'video';
+      postData.mediaType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
     }
     
+    // Create and save post
     const post = new Post(postData);
     await post.save();
     
-    // Populate author info for response
-    await post.populate('userId', 'name avatar');
+    // Get user info for response
+    const user = await User.findById(userId, 'name avatar');
     
-    // Transform response
-    const responsePost = {
-      ...post.toObject(),
-      author: {
-        _id: post.userId._id,
-        name: post.userId.name,
-        avatar: post.userId.avatar
-      },
-      userId: undefined
-    };
-    
-    // Emit to Socket.io if available
+    // Emit new post via Socket.io
     const io = req.app.get('io');
     if (io) {
-      io.emit('newPost', responsePost);
+      io.emit('newPost', {
+        ...post.toObject(),
+        author: {
+          _id: user._id,
+          name: user.name,
+          avatar: user.avatar
+        }
+      });
     }
+    
+    // Award points for creating post
+    await User.findByIdAndUpdate(userId, { $inc: { points: 5 } });
     
     res.status(201).json({
       message: 'Post creato con successo',
-      post: responsePost
+      post: {
+        ...post.toObject(),
+        author: {
+          _id: user._id,
+          name: user.name,
+          avatar: user.avatar
+        },
+        starsEarned: 5
+      }
     });
     
   } catch (error) {
     console.error('Create post error:', error);
-    res.status(500).json({ 
-      error: error.message || 'Errore nella creazione del post' 
-    });
+    res.status(500).json({ error: 'Errore nella creazione del post' });
   }
 });
 
@@ -129,24 +129,28 @@ router.post('/:id/like', async (req, res) => {
       return res.status(404).json({ error: 'Post non trovato' });
     }
     
-    // Toggle like
+    // Check if user already liked the post
     const likeIndex = post.likes.indexOf(userId);
-    if (likeIndex > -1) {
-      post.likes.splice(likeIndex, 1);
-    } else {
+    const isLiked = likeIndex === -1;
+    
+    if (isLiked) {
+      // Add like
       post.likes.push(userId);
+    } else {
+      // Remove like
+      post.likes.splice(likeIndex, 1);
     }
     
     await post.save();
     
     res.json({
-      liked: likeIndex === -1,
+      liked: isLiked,
       likesCount: post.likes.length
     });
     
   } catch (error) {
     console.error('Toggle like error:', error);
-    res.status(500).json({ error: 'Errore nel like del post' });
+    res.status(500).json({ error: 'Errore nel toggle like' });
   }
 });
 
@@ -158,7 +162,7 @@ router.post('/:id/comment', async (req, res) => {
     const userId = req.userId;
     
     if (!text || !text.trim()) {
-      return res.status(400).json({ error: 'Il commento è obbligatorio' });
+      return res.status(400).json({ error: 'Il testo del commento è obbligatorio' });
     }
     
     const post = await Post.findById(postId);
@@ -167,24 +171,31 @@ router.post('/:id/comment', async (req, res) => {
     }
     
     // Get user info
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'Utente non trovato' });
-    }
+    const user = await User.findById(userId, 'name');
     
     // Add comment
     const comment = {
-      userId: userId,
+      userId,
       username: user.name,
-      text: text.trim()
+      text: text.trim(),
+      createdAt: new Date()
     };
     
     post.comments.push(comment);
     await post.save();
     
+    // Emit new comment via Socket.io
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('newComment', {
+        postId,
+        comment
+      });
+    }
+    
     res.status(201).json({
       message: 'Commento aggiunto con successo',
-      comment: post.comments[post.comments.length - 1]
+      comment
     });
     
   } catch (error) {
@@ -193,7 +204,7 @@ router.post('/:id/comment', async (req, res) => {
   }
 });
 
-// DELETE /api/feed/:id - Delete post
+// DELETE /api/feed/:id - Delete post (only by author)
 router.delete('/:id', async (req, res) => {
   try {
     const postId = req.params.id;
@@ -205,13 +216,15 @@ router.delete('/:id', async (req, res) => {
     }
     
     // Check if user is the author
-    if (post.userId.toString() !== userId.toString()) {
-      return res.status(403).json({ error: 'Puoi eliminare solo i tuoi post' });
+    if (post.userId.toString() !== userId) {
+      return res.status(403).json({ error: 'Non sei autorizzato a eliminare questo post' });
     }
     
     await Post.findByIdAndDelete(postId);
     
-    res.json({ message: 'Post eliminato con successo' });
+    res.json({
+      message: 'Post eliminato con successo'
+    });
     
   } catch (error) {
     console.error('Delete post error:', error);
@@ -219,35 +232,24 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// GET /api/feed/user/:userId - Get user's posts
+// GET /api/feed/user/:userId - Get posts by specific user
 router.get('/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 12;
+    const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
     
     const posts = await Post.find({ userId })
-      .populate('userId', 'name avatar')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
     
-    const transformedPosts = posts.map(post => ({
-      ...post,
-      author: {
-        _id: post.userId._id,
-        name: post.userId.name,
-        avatar: post.userId.avatar
-      },
-      userId: undefined
-    }));
-    
     const total = await Post.countDocuments({ userId });
     
     res.json({
-      posts: transformedPosts,
+      posts,
       pagination: {
         page,
         limit,

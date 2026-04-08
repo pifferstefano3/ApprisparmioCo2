@@ -51,180 +51,118 @@ const fileFilter = (req, file, cb) => {
     'image/webp': true,
     'video/mp4': true,
     'video/webm': true,
-    'video/quicktime': true,
-    'application/pdf': true,
-    'application/msword': true,
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': true,
-    'application/vnd.ms-excel': true,
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': true,
-    'application/vnd.ms-powerpoint': true,
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation': true,
-    'text/plain': true,
-    'text/csv': true
+    'video/ogg': true
   };
   
+  // Check file type
   if (allowedTypes[file.mimetype]) {
     cb(null, true);
   } else {
-    cb(new Error('Tipo di file non consentito. Tipi permessi: immagini, video, PDF, documenti Office, testo.'), false);
+    cb(new Error('Tipo di file non supportato. Sono permessi solo immagini (JPEG, PNG, GIF, WebP) e video (MP4, WebM, OGG).'), false);
   }
 };
 
-// Size limits based on file type
-const limits = {
-  fileSize: function(req) {
-    if (req.body.uploadType === 'chat') {
-      return 5 * 1024 * 1024; // 5MB for chat
-    } else if (req.body.uploadType === 'profile') {
-      return 2 * 1024 * 1024; // 2MB for profile pictures
-    } else if (req.body.uploadType === 'feed') {
-      return 20 * 1024 * 1024; // 20MB for feed posts
-    } else if (req.body.uploadType === 'goal') {
-      return 10 * 1024 * 1024; // 10MB for goal attachments
-    }
-    return 10 * 1024 * 1024; // Default 10MB
-  },
-  files: 5 // Maximum 5 files per request
-};
-
-// Create multer instance
+// Upload middleware configuration
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
-  limits: limits,
-  // Error handling
-  onError: function(err, next) {
-    console.error('Multer error:', err);
-    next(err);
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max file size
+    files: 5 // Max 5 files per request
   }
 });
 
-// Middleware for single file upload
-const uploadSingle = (fieldName, uploadType = 'general') => {
-  return (req, res, next) => {
-    // Set upload type in request body for storage configuration
-    req.body.uploadType = uploadType;
-    
-    upload.single(fieldName)(req, res, function(err) {
-      if (err) {
-        console.error('File upload error:', err);
-        
-        if (err instanceof multer.MulterError) {
-          if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({ 
-              error: 'File troppo grande. Dimensione massima: ' + (limits.fileSize(req) / 1024 / 1024).toFixed(1) + 'MB' 
-            });
-          } else if (err.code === 'LIMIT_FILE_COUNT') {
-            return res.status(400).json({ 
-              error: 'Troppi file. Massimo ' + limits.files + ' file per richiesta' 
-            });
-          } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-            return res.status(400).json({ 
-              error: 'Campo file non previsto' 
-            });
-          }
-        }
-        
-        return res.status(400).json({ 
-          error: err.message || 'Errore durante il caricamento del file' 
-        });
-      }
-      
-      next();
-    });
-  };
-};
-
-// Middleware for multiple file upload
-const uploadMultiple = (fieldName, maxCount = 5, uploadType = 'general') => {
-  return (req, res, next) => {
-    req.body.uploadType = uploadType;
-    
-    upload.array(fieldName, maxCount)(req, res, function(err) {
-      if (err) {
-        console.error('File upload error:', err);
-        
-        if (err instanceof multer.MulterError) {
-          if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({ 
-              error: 'File troppo grande. Dimensione massima: ' + (limits.fileSize(req) / 1024 / 1024).toFixed(1) + 'MB' 
-            });
-          } else if (err.code === 'LIMIT_FILE_COUNT') {
-            return res.status(400).json({ 
-              error: 'Troppi file. Massimo ' + maxCount + ' file per richiesta' 
-            });
-          }
-        }
-        
-        return res.status(400).json({ 
-          error: err.message || 'Errore durante il caricamento dei file' 
-        });
-      }
-      
-      next();
-    });
-  };
-};
-
-// Helper function to get file info
-const getFileInfo = (file) => {
-  if (!file) return null;
+// Helper functions for different upload scenarios
+const uploadSingle = (fieldName, uploadType) => (req, res, next) => {
+  // Set upload type in request body for destination determination
+  req.body.uploadType = uploadType;
   
-  return {
-    filename: file.filename,
-    originalName: file.originalname,
-    mimetype: file.mimetype,
-    size: file.size,
-    url: `/uploads/${path.basename(file.destination)}/${file.filename}`,
-    extension: path.extname(file.originalname).toLowerCase(),
-    isImage: file.mimetype.startsWith('image/'),
-    isVideo: file.mimetype.startsWith('video/'),
-    isDocument: !file.mimetype.startsWith('image/') && !file.mimetype.startsWith('video/')
-  };
+  const singleUpload = upload.single(fieldName);
+  singleUpload(req, res, (err) => {
+    if (err) {
+      console.error('Upload error:', err);
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'File troppo grande. Massimo 10MB.' });
+      }
+      if (err.code === 'LIMIT_FILE_COUNT') {
+        return res.status(400).json({ error: 'Troppi file. Massimo 5 file.' });
+      }
+      if (err.message.includes('non supportato')) {
+        return res.status(400).json({ error: err.message });
+      }
+      return res.status(500).json({ error: 'Errore durante il caricamento del file.' });
+    }
+    next();
+  });
 };
 
-// Helper function to delete uploaded file
-const deleteUploadedFile = (filePath) => {
-  try {
-    const fullPath = path.join(__dirname, '../public', filePath);
-    if (fs.existsSync(fullPath)) {
-      fs.unlinkSync(fullPath);
-      return true;
+const uploadMultiple = (fieldName, uploadType, maxCount = 5) => (req, res, next) => {
+  // Set upload type in request body for destination determination
+  req.body.uploadType = uploadType;
+  
+  const multiUpload = upload.array(fieldName, maxCount);
+  multiUpload(req, res, (err) => {
+    if (err) {
+      console.error('Upload error:', err);
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'File troppo grande. Massimo 10MB.' });
+      }
+      if (err.code === 'LIMIT_FILE_COUNT') {
+        return res.status(400).json({ error: `Troppi file. Massimo ${maxCount} file.` });
+      }
+      if (err.message.includes('non supportato')) {
+        return res.status(400).json({ error: err.message });
+      }
+      return res.status(500).json({ error: 'Errore durante il caricamento dei file.' });
     }
-    return false;
-  } catch (error) {
-    console.error('Error deleting file:', error);
-    return false;
+    next();
+  });
+};
+
+// Cleanup function for removing uploaded files on error
+const cleanupOnError = (files) => {
+  if (files && Array.isArray(files)) {
+    files.forEach(file => {
+      try {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      } catch (error) {
+        console.error('Cleanup error:', error);
+      }
+    });
+  } else if (files && files.path) {
+    try {
+      if (fs.existsSync(files.path)) {
+        fs.unlinkSync(files.path);
+      }
+    } catch (error) {
+      console.error('Cleanup error:', error);
+    }
   }
 };
 
-// Middleware to clean up files on request failure
-const cleanupOnError = (req, res, next) => {
-  const originalFiles = req.files ? [...req.files] : (req.file ? [req.file] : []);
+// Create uploads directories on startup
+const createUploadDirectories = () => {
+  const directories = [
+    path.join(__dirname, '../public/uploads'),
+    path.join(__dirname, '../public/uploads/profile'),
+    path.join(__dirname, '../public/uploads/chat'),
+    path.join(__dirname, '../public/uploads/feed'),
+    path.join(__dirname, '../public/uploads/goals')
+  ];
   
-  res.on('finish', () => {
-    // If response status is error, clean up uploaded files
-    if (res.statusCode >= 400) {
-      originalFiles.forEach(file => {
-        deleteUploadedFile(`/uploads/${path.basename(file.destination)}/${file.filename}`);
-      });
-    }
+  directories.forEach(dir => {
+    ensureUploadsDir(dir);
   });
-  
-  next();
 };
+
+// Initialize directories
+createUploadDirectories();
 
 module.exports = {
   upload,
   uploadSingle,
   uploadMultiple,
-  getFileInfo,
-  deleteUploadedFile,
-  cleanupOnError,
-  // Export configuration for reference
-  config: {
-    storage,
-    fileFilter,
-    limits
-  }
+  cleanupOnError
 };

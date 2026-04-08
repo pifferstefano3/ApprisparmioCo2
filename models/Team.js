@@ -48,66 +48,34 @@ const TeamSchema = new mongoose.Schema({
   description: {
     type: String,
     maxlength: 200,
-    default: ''
-  },
-  avatar: {
-    type: String,
-    default: ''
+    trim: true
   },
   isActive: {
     type: Boolean,
     default: true
   },
-  maxMembers: {
-    type: Number,
-    default: 20,
-    min: 2,
-    max: 50
-  },
   createdAt: {
     type: Date,
     default: Date.now
   },
-  lastActivity: {
+  updatedAt: {
     type: Date,
     default: Date.now
   }
-}, {
-  timestamps: true
 });
 
 // Index for faster queries
 TeamSchema.index({ code: 1 });
-TeamSchema.index({ 'members.user': 1 });
 TeamSchema.index({ creator: 1 });
+TeamSchema.index({ 'members.user': 1 });
 
-// Method to generate unique team code
-TeamSchema.statics.generateUniqueCode = async function() {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code;
-  let attempts = 0;
-  const maxAttempts = 10;
-  
-  do {
-    code = '';
-    for (let i = 0; i < 8; i++) {
-      code += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-    
-    const existing = await this.findOne({ code });
-    if (!existing) break;
-    
-    attempts++;
-  } while (attempts < maxAttempts);
-  
-  if (attempts >= maxAttempts) {
-    throw new Error('Impossibile generare un codice univoco dopo diversi tentativi');
-  }
-  
-  return code;
-};
+// Pre-save middleware to update updatedAt
+TeamSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
+});
 
-// Method to add member to team
+// Instance methods
 TeamSchema.methods.addMember = function(userId, role = 'member') {
   // Check if user is already a member
   const existingMember = this.members.find(member => 
@@ -115,12 +83,7 @@ TeamSchema.methods.addMember = function(userId, role = 'member') {
   );
   
   if (existingMember) {
-    throw new Error('L\'utente è già un membro del team');
-  }
-  
-  // Check max members limit
-  if (this.members.length >= this.maxMembers) {
-    throw new Error('Il team ha raggiunto il numero massimo di membri');
+    return false; // User already a member
   }
   
   this.members.push({
@@ -129,55 +92,79 @@ TeamSchema.methods.addMember = function(userId, role = 'member') {
     joinedAt: new Date()
   });
   
-  this.lastActivity = new Date();
-  return this.save();
+  return true;
 };
 
-// Method to remove member from team
 TeamSchema.methods.removeMember = function(userId) {
-  this.members = this.members.filter(member => 
-    member.user.toString() !== userId.toString()
+  const memberIndex = this.members.findIndex(member => 
+    member.user.toString() === userId.toString()
   );
   
-  this.lastActivity = new Date();
-  return this.save();
+  if (memberIndex === -1) {
+    return false; // User not found in members
+  }
+  
+  this.members.splice(memberIndex, 1);
+  return true;
 };
 
-// Method to check if user is member
 TeamSchema.methods.isMember = function(userId) {
   return this.members.some(member => 
     member.user.toString() === userId.toString()
   );
 };
 
-// Method to get user role in team
-TeamSchema.methods.getUserRole = function(userId) {
+TeamSchema.methods.getMemberRole = function(userId) {
+  const member = this.members.find(member => 
+    member.user.toString() === userId.toString()
+  );
+  return member ? member.role : null;
+};
+
+TeamSchema.methods.updateMemberRole = function(userId, newRole) {
   const member = this.members.find(member => 
     member.user.toString() === userId.toString()
   );
   
-  return member ? member.role : null;
+  if (!member) {
+    return false; // User not found in members
+  }
+  
+  member.role = newRole;
+  return true;
 };
 
-// Method to update last activity
-TeamSchema.methods.updateActivity = function() {
-  this.lastActivity = new Date();
-  return this.save();
+// Static methods
+TeamSchema.statics.findByCode = function(code) {
+  return this.findOne({ code: code.toUpperCase() });
 };
 
-// Virtual for member count
+TeamSchema.statics.findUserTeams = function(userId) {
+  return this.find({ 
+    'members.user': userId,
+    isActive: true 
+  }).populate('creator', 'name avatar')
+    .populate('members.user', 'name avatar');
+};
+
+TeamSchema.statics.findCreatedTeams = function(userId) {
+  return this.find({ 
+    creator: userId,
+    isActive: true 
+  }).populate('members.user', 'name avatar');
+};
+
+// Virtual fields
 TeamSchema.virtual('memberCount').get(function() {
   return this.members.length;
 });
 
-// Virtual for team stats
-TeamSchema.virtual('stats').get(function() {
-  return {
-    memberCount: this.members.length,
-    createdAt: this.createdAt,
-    lastActivity: this.lastActivity,
-    isActive: this.isActive
-  };
+TeamSchema.virtual('isFull').get(function() {
+  return this.members.length >= 10; // Max 10 members per team
 });
+
+// Ensure virtual fields are included in JSON
+TeamSchema.set('toJSON', { virtuals: true });
+TeamSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('Team', TeamSchema);

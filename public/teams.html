@@ -53,39 +53,19 @@
   </div>
 
   <!-- Create Team Modal -->
-  <div id="createTeamModal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.6); backdrop-filter:blur(8px); align-items:center; justify-content:center;">
-    <div class="glass-card" style="width:90%; max-width:500px; border-radius:16px; padding:24px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <h3 style="color:white; margin:0;">Crea Nuovo Team</h3>
-        <button id="closeModalBtn" class="btn btn-ghost btn-sm" style="width:auto; padding:6px 12px;">×</button>
+  <div id="createTeamModal" class="modal" style="display:none;">
+    <div class="modal-content glass-card">
+      <div class="modal-header">
+        <h3 style="color:white;">Crea Nuovo Team</h3>
+        <button id="closeModalBtn" class="btn btn-ghost btn-sm" style="width:auto; padding:4px 8px;">×</button>
       </div>
-      
-      <form id="createTeamForm">
-        <div class="form-group">
-          <label class="form-label">Nome Team *</label>
-          <input type="text" id="teamName" class="form-input" placeholder="Nome del team..." maxlength="50" required>
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label">Descrizione</label>
-          <textarea id="teamDescription" class="form-input" rows="3" placeholder="Descrizione del team..." maxlength="200"></textarea>
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label">Numero Massimo Membri</label>
-          <select id="teamMaxMembers" class="form-input">
-            <option value="10">10 membri</option>
-            <option value="20" selected>20 membri</option>
-            <option value="30">30 membri</option>
-            <option value="50">50 membri</option>
-          </select>
-        </div>
-        
-        <div style="display:flex; gap:10px;">
-          <button type="button" class="btn btn-secondary" onclick="closeCreateTeamModal()">Annulla</button>
-          <button type="submit" class="btn btn-primary">Crea Team</button>
-        </div>
-      </form>
+      <div class="modal-body">
+        <form id="createTeamForm">
+          <input type="text" id="teamName" class="form-input" placeholder="Nome del team..." required maxlength="50" style="margin-bottom:12px;">
+          <textarea id="teamDescription" class="form-input" placeholder="Descrizione del team (opzionale)..." rows="3" style="margin-bottom:16px;"></textarea>
+          <button type="submit" class="btn btn-primary" style="width:100%;">Crea Team</button>
+        </form>
+      </div>
     </div>
   </div>
 
