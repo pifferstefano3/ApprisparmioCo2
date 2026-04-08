@@ -147,3 +147,4 @@ GoalSchema.statics.getExpiredGoals = function(userId) {
 };
 
 module.exports = mongoose.model('Goal', GoalSchema);
+
